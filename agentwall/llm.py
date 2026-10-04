@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import json
 import os
+import time
+import re
+from pathlib import Path
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -27,6 +30,8 @@ class ChatMessage:
     tool_calls: Optional[List[Dict[str, Any]]] = None
     tool_call_id: Optional[str] = None
     name: Optional[str] = None
+    # Provider-native message (e.g. Gemini Content with thought signatures), resent unchanged.
+    native: Optional[Any] = None
 
 
 @dataclass
@@ -34,6 +39,12 @@ class LLMResponse:
     content: Optional[str] = None
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     raw: Optional[Any] = None
+    native: Optional[Any] = None
+
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 
 class BaseLLMProvider(ABC):
@@ -111,7 +122,7 @@ class GeminiProvider(BaseLLMProvider):
             raise ValueError(
                 "GEMINI_API_KEY is not set. Please add it to your .env or use replay mode."
             )
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        self.model = model or (os.getenv("GEMINI_MODEL") or "gemini-3.8-flash")
         self.client = genai.Client(api_key=self.api_key)
 
     def _convert_schema_to_gemini(self, schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -164,6 +175,8 @@ class GeminiProvider(BaseLLMProvider):
             temperature=0.0,
             system_instruction=system_instruction,
             tools=gemini_tools,
+            # AgentWall must see and execute every tool call itself.
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
         # Convert messages to Gemini contents structure
@@ -173,6 +186,8 @@ class GeminiProvider(BaseLLMProvider):
                 continue  # Handled in config.system_instruction
             elif msg.role == "user":
                 contents.append(types.Content(role="user", parts=[types.Part.from_text(text=msg.content or "")]))
+            elif msg.role == "assistant" and msg.native is not None:
+                contents.append(msg.native)
             elif msg.role == "assistant":
                 parts = []
                 if msg.content:
@@ -193,35 +208,43 @@ class GeminiProvider(BaseLLMProvider):
                         result_payload = json.loads(result_payload)
                     except Exception:
                         result_payload = {"result": result_payload}
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=msg.name or "unknown_tool",
-                                response={"response": result_payload},
-                            )
-                        ],
-                    )
+                part = types.Part.from_function_response(
+                    name=msg.name or "unknown_tool",
+                    response={"response": result_payload},
                 )
+                # All results for one model turn go back together in a single message.
+                if contents and getattr(contents[-1], "role", None) == "user" and contents[-1].parts and \
+                        contents[-1].parts[0].function_response is not None:
+                    contents[-1].parts.append(part)
+                else:
+                    contents.append(types.Content(role="user", parts=[part]))
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=config,
-            )
-        except Exception as exc:  # network errors, invalid key, free-tier rate limits (429)
-            raise RuntimeError(
-                f"Gemini API call failed ({type(exc).__name__}: {exc}). "
-                "Check GEMINI_API_KEY and quota, or run with --llm-mode replay."
-            ) from exc
+        response = None
+        for attempt in range(8):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )
+                break
+            except Exception as exc:  # network errors, invalid key, quota
+                delay = _rate_limit_delay(exc)
+                if delay is None or attempt == 7:
+                    raise RuntimeError(
+                        f"Gemini API call failed ({type(exc).__name__}: {exc}). "
+                        "Check GEMINI_API_KEY and quota, or run with --llm-mode replay."
+                    ) from exc
+                print(f"[agentwall] Gemini rate limit reached; retrying in {delay:.0f}s", file=sys.stderr)
+                time.sleep(delay)
 
         extracted_text = ""
         tool_calls: List[Dict[str, Any]] = []
+        native = None
 
         if response.candidates:
             candidate = response.candidates[0]
+            native = candidate.content
             if candidate.content and candidate.content.parts:
                 for part in candidate.content.parts:
                     if part.text:
@@ -240,6 +263,7 @@ class GeminiProvider(BaseLLMProvider):
             content=extracted_text.strip() if extracted_text else None,
             tool_calls=tool_calls,
             raw=response,
+            native=native,
         )
 
 
@@ -254,9 +278,7 @@ class FeatherlessProvider(BaseLLMProvider):
             raise ValueError(
                 "FEATHERLESS_API_KEY is not set. Please add it to your .env or use replay mode."
             )
-        self.model = model or os.getenv(
-            "FEATHERLESS_MODEL", "Qwen/Qwen2.5-72B-Instruct"
-        )
+        self.model = model or (os.getenv("FEATHERLESS_MODEL") or "Qwen/Qwen2.5-72B-Instruct")
         self.client = OpenAI(
             base_url="https://api.featherless.ai/v1",
             api_key=self.api_key,
@@ -375,3 +397,13 @@ def create_llm_provider(
         "No API key found (GEMINI_API_KEY / FEATHERLESS_API_KEY) and no replay recording available. "
         "Please set an API key in .env or run with a pre-recorded scenario."
     )
+
+
+def _rate_limit_delay(exc: Exception) -> Optional[float]:
+    """Seconds to wait if this is a per-minute rate limit (HTTP 429), else None."""
+    if getattr(exc, "code", None) != 429 and "RESOURCE_EXHAUSTED" not in str(exc):
+        return None
+    if "PerDay" in str(exc):
+        return None  # a daily quota won't recover by waiting
+    match = re.search(r"retry in ([0-9.]+)s", str(exc)) or re.search(r"'retryDelay': '([0-9.]+)s'", str(exc))
+    return min(float(match.group(1)) + 2, 90) if match else 30.0

@@ -81,6 +81,7 @@ def run_agent_loop(
                 role="assistant",
                 content=response.content,
                 tool_calls=response.tool_calls,
+                native=response.native,
             )
             messages.append(assistant_msg)
 
