@@ -1,0 +1,29 @@
+{
+  "scenario_id": "e_tamper_evident",
+  "name": "Scenario E - Tamper-Evident Audit Log Verification",
+  "description": "Demonstrates cryptographic verification of the Ed25519-signed, SHA-256 hash-chained audit log and instant detection of unauthorized tampering.",
+  "company_domain": "kopjelogistics.example",
+  "trusted_contacts": [
+    {
+      "name": "Tendai Moyo",
+      "email": "tendai.moyo@kopjelogistics.example",
+      "phone": "+263 77 210 9845"
+    }
+  ],
+  "payee_registry": [],
+  "scammer_accounts": [],
+  "scammer_emails": [],
+  "files": {},
+  "web_pages": {},
+  "inbox": [
+    {
+      "id": "msg-501",
+      "from": "audit-system@kopjelogistics.example",
+      "to": "security@kopjelogistics.example",
+      "subject": "System Audit Checkpoint",
+      "received": "2026-10-05T12:00:00Z",
+      "reply_to": null,
+      "body": "Daily audit system verification checkpoint for all recorded transactions and firewall decisions."
+    }
+  ]
+}

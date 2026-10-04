@@ -5,7 +5,7 @@ Every action the AI assistant attempts passes through this gateway.
 In UNPROTECTED mode, actions pass through directly to the environment
 (allowing attacks to succeed for comparison and vulnerability demonstration).
 In PROTECTED mode, actions are evaluated against security policies, taint tracking,
-impersonation heuristics, and human-in-the-loop approvals.
+impersonation heuristics, isolated prompt injection judge, and human-in-the-loop approvals.
 """
 
 from __future__ import annotations
@@ -14,10 +14,13 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from agentwall.approvals import ApprovalItem, ApprovalQueue
 from agentwall.audit import AuditLogger
 from agentwall.environment import Environment
 from agentwall.impersonation import ImpersonationSignal, analyze_email_signals
+from agentwall.judge import InjectionJudge, JudgeVerdict
 from agentwall.policy import PolicyDecision, PolicyEngine
+from agentwall.scam_report import ScamReport, generate_scam_report
 from agentwall.taint import TaintTracker
 from agentwall.tools import execute_tool, get_tool_category, get_tool_metadata
 
@@ -44,14 +47,19 @@ class Gateway:
         policy_engine: Optional[PolicyEngine] = None,
         taint_tracker: Optional[TaintTracker] = None,
         audit_logger: Optional[AuditLogger] = None,
+        approval_queue: Optional[ApprovalQueue] = None,
+        judge: Optional[InjectionJudge] = None,
     ):
         self.env = env
         self.mode = mode.lower()
         self.policy_engine = policy_engine or PolicyEngine()
         self.taint_tracker = taint_tracker or TaintTracker(env=self.env)
         self.audit_logger = audit_logger
+        self.approval_queue = approval_queue
+        self.judge = judge or InjectionJudge()
 
         self.impersonation_signals: List[ImpersonationSignal] = []
+        self.last_judge_verdict: Optional[JudgeVerdict] = None
         self.event_listeners: List[Callable[[Dict[str, Any]], None]] = []
         self.call_history: List[GatewayDecision] = []
 
@@ -131,11 +139,98 @@ class Gateway:
         decision_action = policy_result.decision
         decision_reason = policy_result.reason
 
+        # Handle human-in-the-loop approval requirement
+        if decision_action == "require_approval":
+            if self.approval_queue:
+                appr_item = self.approval_queue.create_request(
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    reason=decision_reason,
+                )
+                self.emit_event(
+                    "approval_needed",
+                    {
+                        "approval_id": appr_item.id,
+                        "tool_name": tool_name,
+                        "arguments": arguments,
+                        "reason": decision_reason,
+                        "amount": appr_item.amount,
+                        "target": appr_item.target,
+                    },
+                )
+                # Block waiting for human administrator decision
+                approved = self.approval_queue.wait_for_resolution(appr_item, timeout=20.0)
+                if approved:
+                    tool_output = execute_tool(self.env, tool_name, arguments)
+                    decision = GatewayDecision(
+                        allowed=True,
+                        decision="allow",
+                        reason=f"Approved by human administrator: {decision_reason}",
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        output=tool_output,
+                        approval_id=appr_item.id,
+                    )
+                    self.call_history.append(decision)
+                    self.emit_event(
+                        "decision",
+                        {
+                            "decision": "allow",
+                            "reason": decision.reason,
+                            "tool_name": tool_name,
+                            "arguments": arguments,
+                            "allowed": True,
+                            "output": tool_output,
+                        },
+                    )
+                    return decision
+                else:
+                    decision_action = "block"
+                    decision_reason = f"Denied by human verification: {appr_item.reviewer_note or decision_reason}"
+            else:
+                # If no approval queue attached, hold action
+                decision = GatewayDecision(
+                    allowed=False,
+                    decision="require_approval",
+                    reason=decision_reason,
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    output={"status": "held_for_verification", "reason": decision_reason},
+                )
+                self.call_history.append(decision)
+                self.emit_event(
+                    "decision",
+                    {
+                        "decision": "require_approval",
+                        "reason": decision_reason,
+                        "tool_name": tool_name,
+                        "arguments": arguments,
+                        "allowed": False,
+                        "output": decision.output,
+                    },
+                )
+                return decision
+
         if decision_action == "block":
             tool_output = {
                 "error": f"BLOCKED BY SECURITY POLICY: {decision_reason}",
                 "status": "blocked",
             }
+            # Generate plain-language scam report
+            report = generate_scam_report(
+                env=self.env,
+                impersonation_signals=self.impersonation_signals,
+                judge_verdict=self.last_judge_verdict,
+                blocked_decisions=[
+                    GatewayDecision(
+                        allowed=False,
+                        decision="block",
+                        reason=decision_reason,
+                        tool_name=tool_name,
+                        arguments=arguments,
+                    )
+                ],
+            )
             decision = GatewayDecision(
                 allowed=False,
                 decision="block",
@@ -143,6 +238,7 @@ class Gateway:
                 tool_name=tool_name,
                 arguments=arguments,
                 output=tool_output,
+                scam_report=report.to_dict(),
             )
             self.call_history.append(decision)
             self.emit_event(
@@ -154,6 +250,7 @@ class Gateway:
                     "arguments": arguments,
                     "allowed": False,
                     "output": tool_output,
+                    "scam_report": report.to_dict(),
                 },
             )
             return decision
@@ -169,9 +266,27 @@ class Gateway:
             env=self.env,
         )
 
-        # If an email was read, inspect for impersonation signals
+        # If an email was read, inspect for prompt injection and impersonation signals
         if tool_name == "read_email" and isinstance(tool_output, dict):
             email_id = str(arguments.get("id", ""))
+            body = tool_output.get("body", "")
+            subject = tool_output.get("subject", "")
+
+            # 1. Run Injection Judge on the untrusted message content
+            judge_verdict = self.judge.judge(f"{subject}\n{body}")
+            self.last_judge_verdict = judge_verdict
+            if judge_verdict.injection:
+                self.emit_event(
+                    "judge_verdict",
+                    {
+                        "injection": True,
+                        "confidence": judge_verdict.confidence,
+                        "explanation": judge_verdict.explanation,
+                        "source": email_id,
+                    },
+                )
+
+            # 2. Run Impersonation checks
             for email in self.env.inbox:
                 if email.id == email_id:
                     signals = analyze_email_signals(email, self.env)
