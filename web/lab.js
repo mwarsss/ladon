@@ -106,6 +106,11 @@ function onEvent(e) {
     chip.title = e.evidence || e.explanation || "";
     chip.textContent = e.type === "judge_verdict" ? "hidden instruction" : String(e.signal_type).replace(/_/g, " ");
     $("signals").appendChild(chip);
+  } else if (e.type === "inbox_screening") {
+    const chip = document.createElement("span");
+    chip.className = "text-[10px] px-2 py-1 rounded-full bg-sky-500/10 text-sky-200 border border-sky-500/30";
+    chip.textContent = `Agentboxd: ${e.label}`;
+    $("signals").appendChild(chip);
   } else if (e.type === "lane_done" && lane) {
     lane.summary = e.summary;
     lane.status.textContent = "finished";
@@ -199,17 +204,58 @@ async function send() {
     $("formError").classList.remove("hidden");
     return;
   }
+  follow(data.run_id);
+}
+
+function follow(runId) {
   resetLanes();
   $("sendBtn").disabled = true;
   $("sendBtn").textContent = "Assistants are working…";
-  source = new EventSource(`/api/lab/events/${data.run_id}`);
+  source = new EventSource(`/api/lab/events/${runId}`);
   source.onmessage = (msg) => onEvent(JSON.parse(msg.data));
   source.onerror = () => { source.close(); $("sendBtn").disabled = false; $("sendBtn").textContent = "Send to both assistants →"; };
+  $("verdict").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadInbox() {
+  let data;
+  try { data = await (await fetch("/api/lab/inbox")).json(); } catch (e) { return; }
+  if (!data.enabled) return;
+  $("realInbox").classList.remove("hidden");
+  $("inboxAddress").textContent = data.address || "";
+  const list = $("inboxList");
+  if (data.error) { list.innerHTML = `<p class="text-rose-300 text-xs">${esc(data.error)}</p>`; return; }
+  if (!data.messages.length) { list.innerHTML = `<p class="text-slate-500 text-xs italic">No emails yet.</p>`; return; }
+  list.innerHTML = data.messages.map(m => `
+    <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950 border border-slate-800 rounded-lg p-2.5">
+      <div class="min-w-0">
+        <p class="text-slate-200 truncate"><span class="font-semibold">${esc(m.subject)}</span></p>
+        <p class="text-xs text-slate-400 truncate">${esc(m.from)} · ${esc(new Date(m.received_at).toLocaleString())}
+          ${m.screening.map(l => `<span class="ml-1 text-[10px] px-1.5 rounded bg-sky-500/10 text-sky-200 border border-sky-500/30">${esc(l)}</span>`).join("")}</p>
+      </div>
+      <button data-id="${esc(m.id)}" class="run-inbox text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-lg px-3 py-1.5">Run this email →</button>
+    </div>`).join("");
+  list.querySelectorAll(".run-inbox").forEach(btn => btn.addEventListener("click", () => runInbox(btn.dataset.id)));
+}
+
+async function runInbox(id) {
+  $("formError").classList.add("hidden");
+  const res = await fetch(`/api/lab/run-inbox/${encodeURIComponent(id)}?brain=${brain}`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) {
+    $("formError").textContent = typeof data.detail === "string" ? data.detail : "Couldn't run that email.";
+    $("formError").classList.remove("hidden");
+    return;
+  }
+  follow(data.run_id);
 }
 
 $("brainFooled").addEventListener("click", () => setBrain("fooled"));
 $("brainLive").addEventListener("click", () => liveAvailable && setBrain("live"));
 $("sendBtn").addEventListener("click", send);
+$("refreshInbox").addEventListener("click", loadInbox);
 setBrain("fooled");
 loadPresets();
 loadStatus();
+loadInbox();
+setInterval(loadInbox, 10000);

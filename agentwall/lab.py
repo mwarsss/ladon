@@ -15,6 +15,7 @@ import re
 import threading
 import time
 import uuid
+from email.utils import parseaddr
 from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
@@ -95,6 +96,34 @@ class LabEmail(BaseModel):
     subject: str = Field(max_length=160)
     body: str = Field(max_length=4000)
     brain: str = Field(default="fooled")
+
+
+AGENTBOXD_BASE = os.environ.get("AGENTBOXD_BASE_URL", "https://api.agentboxd.com").rstrip("/")
+
+
+def _agentboxd_config() -> Optional[Dict[str, str]]:
+    key, inbox = os.environ.get("AGENTBOXD_API_KEY"), os.environ.get("AGENTBOXD_INBOX_ID")
+    if not key or not inbox:
+        return None
+    return {"key": key, "inbox": inbox, "address": os.environ.get("AGENTBOXD_INBOX_ADDRESS", "")}
+
+
+def _agentboxd_get(path: str, cfg: Dict[str, str], **params: Any) -> Dict[str, Any]:
+    import httpx  # installed with the openai client
+
+    resp = httpx.get(f"{AGENTBOXD_BASE}{path}", params=params, timeout=20,
+                     headers={"Authorization": f"Bearer {cfg['key']}"})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _screening_labels(message: Dict[str, Any]) -> List[str]:
+    """Agentboxd's own inbound checks (authentication failures, AI phishing/injection flags)."""
+    interesting = ("dmarc", "spf", "dkim", "phishing", "injection", "spam", "suspicious")
+    labels = [lbl for lbl in message.get("labels") or [] if any(w in lbl.lower() for w in interesting)]
+    if message.get("warning"):
+        labels.append(str(message["warning"])[:120])
+    return labels
 
 
 class _Run:
@@ -206,7 +235,9 @@ def _run_lane(run: _Run, lane: str, data: Dict[str, Any], brain: str) -> None:
         run.push({"lane": lane, "type": "lane_error", "message": str(exc)[:300]})
 
 
-def _run_both(run: _Run, data: Dict[str, Any], brain: str) -> None:
+def _run_both(run: _Run, data: Dict[str, Any], brain: str, screening: Optional[List[str]] = None) -> None:
+    for label in screening or []:
+        run.push({"lane": "protected", "type": "inbox_screening", "label": label})
     lanes = [threading.Thread(target=_run_lane, args=(run, lane, data, brain), daemon=True)
              for lane in ("unprotected", "protected")]
     for t in lanes:
@@ -231,8 +262,53 @@ def status() -> Dict[str, Any]:
     }
 
 
+@router.get("/inbox")
+def real_inbox() -> Dict[str, Any]:
+    """Recent inbound emails at the real Agentboxd inbox (the API key stays server-side)."""
+    cfg = _agentboxd_config()
+    if cfg is None:
+        return {"enabled": False}
+    try:
+        data = _agentboxd_get(f"/v1/inboxes/{cfg['inbox']}/messages", cfg, limit=6, direction="inbound")
+    except Exception as exc:
+        return {"enabled": True, "address": cfg["address"], "error": f"Couldn't reach Agentboxd ({type(exc).__name__})."}
+    messages = [
+        {"id": m["id"], "from": m.get("from", ""), "subject": m.get("subject", ""),
+         "received_at": m.get("received_at", ""), "screening": _screening_labels(m)}
+        for m in data.get("data", [])
+    ]
+    return {"enabled": True, "address": cfg["address"], "messages": messages}
+
+
+@router.post("/run-inbox/{message_id}")
+def start_from_inbox(message_id: str, request: Request, brain: str = "fooled") -> Dict[str, Any]:
+    """Run a real email from the Agentboxd inbox through both assistants."""
+    cfg = _agentboxd_config()
+    if cfg is None:
+        raise HTTPException(status_code=404, detail="No real inbox is configured.")
+    if not re.fullmatch(r"[0-9a-fA-F-]{8,64}", message_id):
+        raise HTTPException(status_code=422, detail="Bad message id.")
+    try:
+        m = _agentboxd_get(f"/v1/messages/{message_id}", cfg)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Couldn't fetch the email from Agentboxd ({type(exc).__name__}).")
+    if m.get("inbox_id") not in (None, cfg["inbox"]):
+        raise HTTPException(status_code=404, detail="Unknown message.")
+    name, addr = parseaddr(m.get("from", ""))
+    email = LabEmail(
+        sender_name=(name or addr)[:80], sender_email=(addr or "unknown@unknown.example")[:120],
+        subject=(m.get("subject") or "(no subject)")[:160],
+        body=(m.get("extracted_text") or m.get("text") or "")[:4000] or "(empty)", brain=brain,
+    )
+    return _start(email, request, screening=_screening_labels(m))
+
+
 @router.post("/run")
 def start(email: LabEmail, request: Request) -> Dict[str, Any]:
+    return _start(email, request)
+
+
+def _start(email: LabEmail, request: Request, screening: Optional[List[str]] = None) -> Dict[str, Any]:
     if not EMAIL_RE.match(email.sender_email.strip()):
         raise HTTPException(status_code=422, detail="Sender email doesn't look like an email address.")
     if not email.body.strip() or not email.subject.strip():
@@ -259,7 +335,7 @@ def start(email: LabEmail, request: Request) -> Dict[str, Any]:
     run_id = uuid.uuid4().hex[:12]
     run = _Run()
     _runs[run_id] = run
-    threading.Thread(target=_run_both, args=(run, _scenario_with(email), brain), daemon=True).start()
+    threading.Thread(target=_run_both, args=(run, _scenario_with(email), brain, screening), daemon=True).start()
     return {"run_id": run_id, "brain": brain}
 
 
