@@ -21,19 +21,26 @@
   - `agentwall/gateway.py`: Full PROTECTED mode interception.
   - **Checks verified**: Scenario B in PROTECTED mode blocks payroll exfiltration and $8,450 fraudulent transfer while allowing legitimate $3,200 supplier invoice and customer quote draft; Scenario C in PROTECTED mode completes all tasks with 0 false positives; tampering with an audit log line is detected by `scripts/verify_log.py` with exact index reporting; 27/27 pytest tests pass.
 
-- [ ] **PHASE 3 (Oct 7) — Judge, Approvals, Scam Report, Dashboard**
-  - `judge.py` (heuristics + isolated Gemini judge).
-  - `scam_report.py` (plain-language explanation of scammer tactics, red flags, evidence, response steps).
-  - `approvals.py` (human-in-the-loop pending approval queue).
-  - `server.py` with SSE streaming; `web/` dashboard covering scenarios A–E.
+- [x] **PHASE 3 — Judge, approvals, scam report, dashboard**
+  - Isolated AI judge (live mode) + heuristics, approval queue, scam report, FastAPI + SSE dashboard for scenarios A–E.
+  - Review fixes: dashboard XSS (attacker email text executed as script, 7 → 0), real provenance inspector,
+    data-driven outcome banners, genuine bank changes held instead of blocked, server bound to 127.0.0.1.
 
-- [ ] **PHASE 4 (Oct 8) — Evaluation and Hardening**
-  - `evals/cases` + `run_eval.py` + `evals/results.md` benchmark table.
-  - Fix false positives; record replays for all demo scenarios; error handling & fallbacks.
+- [x] **PHASE 4 — Evaluation and hardening**
+  - `evals/` benchmark: 25 scripted traces; 17/17 attacks succeed unprotected, 3/17 with AgentWall (all documented
+    known misses), 0 false positives, 39/39 decisions as expected, ~0.07 ms added per call. Enforced by tests.
+  - Fixed: URL exfiltration via fetch_url, inflated/duplicate payments to known payees, one-shared-word false
+    matches in data-flow tracking, internal/trusted-recipient false positives, silent policy typos.
+  - Clear errors for missing/invalid API keys.
 
-- [ ] **PHASE 5 (Oct 9) — Submission Package**
-  - README, architecture diagram (Mermaid), screenshots, `docs/demo_script.md`, `docs/devpost_description.md`.
-  - Final clean-clone test in a fresh virtualenv.
+- [x] **PHASE 5 — Submission package**
+  - README (incl. "What works and what doesn't"), docs/demo_script.md, docs/devpost_description.md,
+    screenshots in docs/img, pinned requirements. Fresh-clone test passed (tests, CLI, eval, dashboard).
+
+- [ ] **Before submitting**
+  - Add a Gemini key and record genuine model runs: `python -m agentwall.agent --scenario scenarios/<s>.json --mode <mode> --llm-mode record`.
+  - Record the demo video, make the repo public, submit on Devpost by Oct 10, 12:00 PM ET.
+  - Optional: Agentboxd real-inbox integration.
 
 ---
 
