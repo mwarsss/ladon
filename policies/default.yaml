@@ -34,6 +34,14 @@ rules:
     decision: block
     reason: "Data exfiltration blocked: Attempt to send confidential information from {confidential_source} to external address {to}."
 
+  # Replying to the genuine sender of an email is normal business, as long as
+  # nothing internal or confidential goes with it.
+  - id: allow_reply_to_unspoofed_sender
+    category: send_external
+    condition: "target_is_unspoofed_sender and no_internal_or_confidential_flow"
+    decision: allow
+    reason: "Reply to {to}, who emailed us and shows no impersonation signs; no internal or confidential data included."
+
   # 4. Block send_external to lookalike or untrusted entity
   - id: block_send_to_untrusted_entity
     category: send_external

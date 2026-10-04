@@ -27,8 +27,8 @@
     data-driven outcome banners, genuine bank changes held instead of blocked, server bound to 127.0.0.1.
 
 - [x] **PHASE 4 — Evaluation and hardening**
-  - `evals/` benchmark: 25 scripted traces; 17/17 attacks succeed unprotected, 3/17 with AgentWall (all documented
-    known misses), 0 false positives, 39/39 decisions as expected, ~0.07 ms added per call. Enforced by tests.
+  - `evals/` benchmark: 27 scripted traces; 18/18 attacks succeed unprotected, 3/18 with AgentWall (all documented
+    known misses), 0 false positives, 42/42 decisions as expected, ~0.08 ms added per call. Enforced by tests.
   - Fixed: URL exfiltration via fetch_url, inflated/duplicate payments to known payees, one-shared-word false
     matches in data-flow tracking, internal/trusted-recipient false positives, silent policy typos.
   - Clear errors for missing/invalid API keys.
@@ -37,8 +37,12 @@
   - README (incl. "What works and what doesn't"), docs/demo_script.md, docs/devpost_description.md,
     screenshots in docs/img, pinned requirements. Fresh-clone test passed (tests, CLI, eval, dashboard).
 
+- [x] **Live models**
+  - Gemini 3.8 Flash and Featherless (Qwen 2.5 72B) tested end to end. Demo recordings are real Qwen runs
+    (Qwen paid the scammer unprotected; Gemini ignored the scam). A real run exposed a customer-reply false
+    positive, now fixed and covered by benchmark case B09.
+
 - [ ] **Before submitting**
-  - Add a Gemini key and record genuine model runs: `python -m agentwall.agent --scenario scenarios/<s>.json --mode <mode> --llm-mode record`.
   - Record the demo video, make the repo public, submit on Devpost by Oct 10, 12:00 PM ET.
   - Optional: Agentboxd real-inbox integration.
 

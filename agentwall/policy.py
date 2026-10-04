@@ -36,6 +36,8 @@ class PolicyDecision:
 KNOWN_CONDITIONS = {
     "has_confidential_flow",
     "target_is_external",
+    "target_is_unspoofed_sender",
+    "no_internal_or_confidential_flow",
     "target_is_untrusted_entity_or_lookalike",
     "target_not_in_payee_registry",
     "target_in_payee_registry",
@@ -185,6 +187,15 @@ class PolicyEngine:
         if cond == "has_confidential_flow":
             return confidential_flow is not None
 
+        elif cond == "target_is_unspoofed_sender":
+            return self._is_unspoofed_sender(str(arguments.get("to", "")), env)
+
+        elif cond == "no_internal_or_confidential_flow":
+            return not any(
+                f.label.sensitivity in ("internal", "confidential")
+                for f in tracker.analyze_arguments(arguments)
+            )
+
         elif cond == "target_is_external":
             _, addr = parseaddr(str(arguments.get("to", "")))
             return extract_domain(addr.lower()) != env.company_domain
@@ -244,6 +255,20 @@ class PolicyEngine:
             return env.is_duplicate_payment(str(arguments.get("reference", "")))
 
         raise ValueError(f"Unknown policy condition: {cond}")
+
+    @staticmethod
+    def _is_unspoofed_sender(address: str, env: Environment) -> bool:
+        """True if `address` sent us an email that shows no impersonation signs."""
+        _, target = parseaddr(address)
+        target = target.lower()
+        if not target:
+            return False
+        spoofing = {"lookalike_domain", "display_name_spoof", "reply_to_mismatch"}
+        for email in env.inbox:
+            _, sender = parseaddr(email.from_addr)
+            if sender.lower() == target:
+                return not any(sig.signal_type in spoofing for sig in analyze_email_signals(email, env))
+        return False
 
     @staticmethod
     def _payee_from_unverified_sender(
