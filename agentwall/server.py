@@ -25,7 +25,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from agentwall.agent import run_agent_loop
+from agentwall.agent import make_judge, run_agent_loop
 from agentwall.approvals import ApprovalQueue
 from agentwall.audit import AuditLogger
 from agentwall.environment import Environment
@@ -187,11 +187,13 @@ def _run_worker(scenario_id: str, mode: str, llm_mode: str) -> None:
         audit_logger = AuditLogger()
         approval_queue = ApprovalQueue(default_timeout_seconds=45.0)
 
+        llm = create_llm_provider(mode=llm_mode, scenario_name=scenario_id)
         gateway = Gateway(
             env=env,
             mode=mode,
             audit_logger=audit_logger,
             approval_queue=approval_queue,
+            judge=make_judge(llm),
         )
 
         # Wire gateway events directly into the SSE broadcaster
@@ -212,7 +214,6 @@ def _run_worker(scenario_id: str, mode: str, llm_mode: str) -> None:
             "scenario_name": data.get("name", scenario_id),
         })
 
-        llm = create_llm_provider(mode=llm_mode, scenario_name=scenario_id)
         result = run_agent_loop(env=env, gateway=gateway, llm=llm)
 
         with state.lock:

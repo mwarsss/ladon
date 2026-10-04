@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from agentwall.environment import Environment
 from agentwall.gateway import Gateway, GatewayDecision
+from agentwall.judge import InjectionJudge
 from agentwall.llm import BaseLLMProvider, ChatMessage, create_llm_provider
 from agentwall.tools import ALL_TOOLS
 
@@ -125,6 +126,14 @@ def run_agent_loop(
     )
 
 
+def make_judge(llm: Any) -> InjectionJudge:
+    """Use the live model as an isolated, tool-less judge; replays stay heuristic-only."""
+    from agentwall.llm import FeatherlessProvider, GeminiProvider
+
+    live = isinstance(llm, (GeminiProvider, FeatherlessProvider))
+    return InjectionJudge(llm_provider=llm if live else None)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the AgentWall email assistant.")
     parser.add_argument(
@@ -165,7 +174,12 @@ def main() -> None:
     scenario_id = scenario_data.get("scenario_id", scenario_path.stem)
     env = Environment.from_scenario(scenario_data)
     audit_logger = AuditLogger()
-    gateway = Gateway(env=env, mode=args.mode, audit_logger=audit_logger)
+    try:
+        llm = create_llm_provider(mode=args.llm_mode, scenario_name=scenario_id)
+    except ValueError as exc:
+        print(f"\nError: {exc}", file=sys.stderr)
+        sys.exit(1)
+    gateway = Gateway(env=env, mode=args.mode, audit_logger=audit_logger, judge=make_judge(llm))
 
     print(f"\n==================================================")
     print(f" AGENTWALL ASSISTANT RUNNER")
@@ -187,7 +201,6 @@ def main() -> None:
     gateway.add_event_listener(console_event_listener)
 
     try:
-        llm = create_llm_provider(mode=args.llm_mode, scenario_name=scenario_id)
         result = run_agent_loop(env=env, gateway=gateway, llm=llm, user_prompt=args.prompt)
     except (ValueError, RuntimeError) as exc:
         print(f"\nError: {exc}", file=sys.stderr)
