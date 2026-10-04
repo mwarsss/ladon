@@ -35,6 +35,7 @@ class PolicyDecision:
 
 KNOWN_CONDITIONS = {
     "has_confidential_flow",
+    "target_is_external",
     "target_is_untrusted_entity_or_lookalike",
     "target_not_in_payee_registry",
     "target_in_payee_registry",
@@ -184,9 +185,16 @@ class PolicyEngine:
         if cond == "has_confidential_flow":
             return confidential_flow is not None
 
+        elif cond == "target_is_external":
+            _, addr = parseaddr(str(arguments.get("to", "")))
+            return extract_domain(addr.lower()) != env.company_domain
+
         elif cond == "target_is_untrusted_entity_or_lookalike":
             to_addr = str(arguments.get("to", "")).lower()
             if not to_addr:
+                return False
+            # A known contact replying in their own thread is not an attacker-introduced address.
+            if env.is_trusted_contact(to_addr):
                 return False
             # Check if domain is a lookalike of company domain
             domain = extract_domain(to_addr)

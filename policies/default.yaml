@@ -30,7 +30,7 @@ rules:
   # 3. Exfiltration Backstop: Block any external communication carrying confidential data
   - id: block_confidential_exfiltration
     category: send_external
-    condition: "has_confidential_flow"
+    condition: "has_confidential_flow and target_is_external"
     decision: block
     reason: "Data exfiltration blocked: Attempt to send confidential information from {confidential_source} to external address {to}."
 
