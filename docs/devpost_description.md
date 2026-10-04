@@ -29,7 +29,7 @@ A benchmark of 25 scripted traces from a fully compromised assistant: all 17 att
 Security for AI agents is about what they're *allowed to do*, not just what they're told. Data-flow tracking and human verification of money movements catch attacks that clever prompts can't.
 
 ## What works and what doesn't
-Works: all demo scenarios end to end (offline replay of scripted assistant runs), the benchmark, approvals and tamper detection. Partly: paraphrased data ("twelve and a half thousand") isn't recognised as confidential; email, files and payments are simulated; live-model mode is implemented but was not fully exercised with a real key at the time of writing.
+Works: all demo scenarios end to end (offline replay of scripted assistant runs), the benchmark, approvals and tamper detection. Partly: paraphrased data ("twelve and a half thousand") isn't recognised as confidential; email, files and payments are simulated; the offline demo uses scripted assistant runs so the attack is visible; in a live run, Gemini 3.8 Flash ignored our obvious fake-CEO email by itself, which is why the benchmark measures AgentWall against an assistant that is fully fooled.
 
 ## What's next
 Connect real inboxes (e.g. Agentboxd), learn per-supplier payment patterns, and package AgentWall as a drop-in layer for popular agent frameworks.

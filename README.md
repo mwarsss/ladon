@@ -106,6 +106,8 @@ flowchart LR
 | Decisions matching the expected outcome | — | 39/39 |
 | Median added latency per tool call | — | 0.07 ms |
 
+**Why test a fully compromised assistant?** In a live test, Gemini 3.8 Flash read our fake-CEO email and ignored it on its own (recording in `scenarios/recordings/live/`). Models catch obvious scams like this one, but not reliably and not subtle ones, and a single successful attempt can cost thousands. AgentWall's job is to hold even when the model is fooled, so the benchmark assumes it always is.
+
 Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing, lookalike supplier "new bank details", hidden-text injection, injected web pages, payroll smuggled into a URL (plain and percent-encoded), gift-card scams, duplicate and inflated invoices, reply-to harvesting, paraphrased strategy leaks, and single-row payroll leaks. Full per-case results: [evals/results.md](evals/results.md).
 
 ## What works and what doesn't
@@ -119,7 +121,7 @@ Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing
 - **Known misses** (in the benchmark on purpose): a fake invoice to a *registered* supplier under the auto-payment limit; salary details paraphrased in words to a trusted contact whose mailbox is compromised; and an injected instruction that only changes the wording of an internal draft.
 - **Paraphrase detection is heuristic.** Data re-expressed in different words ("twelve and a half thousand") is not recognised as the payroll. It is still blocked when the recipient is unknown or spoofed, but not when the recipient is trusted.
 - **Simulated world.** Email, files, web pages and payments are an in-memory mock, so nothing real is ever sent or paid. Connecting a real inbox (for example Agentboxd, a ForgeHacks sponsor) is the next step.
-- **The offline demo uses scripted assistant runs.** Live mode (Gemini, or Featherless through its OpenAI-compatible API) is implemented, including the isolated AI judge, with clear errors for missing keys and quota limits, but at the time of writing it had not yet been run end to end with a real key. Replays use the heuristic judge only.
+- **The offline demo uses scripted assistant runs**, so scenarios A and B can show an assistant that falls for the scam. Live mode with Gemini works (tested end to end with Gemini 3.8 Flash, including retries for the free tier's 5-requests-per-minute limit), and the isolated AI judge runs in live mode. The free tier's small daily quota limits how many live runs you can make in a day. Replays use the heuristic judge only.
 - **The dashboard is a local demo:** no login, single user, bound to 127.0.0.1.
 
 ## Security of AgentWall itself

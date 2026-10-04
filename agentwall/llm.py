@@ -235,7 +235,7 @@ class GeminiProvider(BaseLLMProvider):
                         f"Gemini API call failed ({type(exc).__name__}: {exc}). "
                         "Check GEMINI_API_KEY and quota, or run with --llm-mode replay."
                     ) from exc
-                print(f"[agentwall] Gemini rate limit reached; retrying in {delay:.0f}s", file=sys.stderr)
+                print(f"[agentwall] Gemini busy or rate-limited; retrying in {delay:.0f}s", file=sys.stderr)
                 time.sleep(delay)
 
         extracted_text = ""
@@ -400,7 +400,9 @@ def create_llm_provider(
 
 
 def _rate_limit_delay(exc: Exception) -> Optional[float]:
-    """Seconds to wait if this is a per-minute rate limit (HTTP 429), else None."""
+    """Seconds to wait for a per-minute rate limit (429) or a temporary overload (503), else None."""
+    if getattr(exc, "code", None) == 503 or "UNAVAILABLE" in str(exc):
+        return 20.0  # model temporarily overloaded on Google's side
     if getattr(exc, "code", None) != 429 and "RESOURCE_EXHAUSTED" not in str(exc):
         return None
     if "PerDay" in str(exc):
