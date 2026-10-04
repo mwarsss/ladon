@@ -146,11 +146,22 @@ def generate_scam_report(
     else:
         summary = "Suspicious impersonation signals and policy violations were intercepted."
 
-    # 4. Actionable Next Steps
-    # Find contact info for impersonated executive or primary contact
-    primary_contact: Optional[Contact] = None
-    if env.trusted_contacts:
-        primary_contact = env.trusted_contacts[0]
+    # Without spoofing or injection evidence this may be a genuine request; say so.
+    spoofing = {"lookalike_domain", "display_name_spoof", "reply_to_mismatch"}
+    has_attack_evidence = any(sig.signal_type in spoofing for sig in impersonation_signals) or bool(
+        judge_verdict and judge_verdict.injection
+    )
+    if not has_attack_evidence:
+        summary = (
+            f"A payment or data transfer was stopped because it could not be verified "
+            f"(${prevented_cash:,.2f} held back). There are no signs of impersonation, so this may be "
+            f"a genuine request; confirm it through a trusted channel before retrying."
+            if prevented_cash
+            else "An action was stopped because it could not be verified against policy."
+        )
+
+    # 4. Actionable Next Steps: call the person being impersonated or whose request this was.
+    primary_contact = _relevant_contact(env, impersonation_signals, blocked)
 
     steps: List[str] = []
     if primary_contact:
@@ -174,3 +185,24 @@ def generate_scam_report(
         ),
         recommended_next_steps=steps,
     )
+
+
+def _relevant_contact(
+    env: Environment, signals: List[ImpersonationSignal], blocked: List[Any]
+) -> Optional[Contact]:
+    """Pick the trusted contact named or addressed in the evidence, else the first contact."""
+    text = " ".join(
+        [f"{sig.evidence} {sig.source_entity}" for sig in signals]
+        + [f"{getattr(d, 'reason', '')} {getattr(d, 'arguments', '')}" for d in blocked]
+        + [f"{e.from_addr}" for e in env.inbox]
+    ).lower()
+    best, best_score = None, 0
+    for contact in env.trusted_contacts:
+        score = 0
+        if contact.name.lower() in text:
+            score += 2
+        if contact.email.lower() in text:
+            score += 1
+        if score > best_score:
+            best, best_score = contact, score
+    return best or (env.trusted_contacts[0] if env.trusted_contacts else None)

@@ -11,12 +11,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from email.utils import parseaddr
 from urllib.parse import unquote_plus, urlsplit
 
 import yaml
 
 from agentwall.environment import Environment
-from agentwall.impersonation import ImpersonationSignal, check_lookalike_domain, extract_domain
+from agentwall.impersonation import (
+    ImpersonationSignal,
+    analyze_email_signals,
+    check_lookalike_domain,
+    extract_domain,
+)
 from agentwall.taint import TaintTracker
 
 
@@ -33,6 +39,7 @@ KNOWN_CONDITIONS = {
     "target_not_in_payee_registry",
     "target_in_payee_registry",
     "has_untrusted_instruction_provenance",
+    "payee_introduced_by_unverified_sender",
     "has_lookalike_signal",
     "target_in_trusted_contacts",
     "url_sends_payload_to_unknown_domain",
@@ -208,6 +215,9 @@ class PolicyEngine:
             to_addr = str(arguments.get("to", ""))
             return env.is_trusted_contact(to_addr)
 
+        elif cond == "payee_introduced_by_unverified_sender":
+            return self._payee_from_unverified_sender(arguments, env, tracker)
+
         elif cond == "url_sends_payload_to_unknown_domain":
             parts = urlsplit(str(arguments.get("url", "")))
             host = (parts.hostname or "").lower()
@@ -226,6 +236,30 @@ class PolicyEngine:
             return env.is_duplicate_payment(str(arguments.get("reference", "")))
 
         raise ValueError(f"Unknown policy condition: {cond}")
+
+    @staticmethod
+    def _payee_from_unverified_sender(
+        arguments: Dict[str, Any], env: Environment, tracker: TaintTracker
+    ) -> bool:
+        """True unless the new account was introduced by a known contact showing no spoofing.
+
+        A genuine supplier changing bank details should be held for a human to verify;
+        an account supplied by an unknown or spoofed sender should be blocked outright.
+        """
+        flow = tracker.has_untrusted_entity_flow(arguments)
+        if flow is None:
+            return False  # not introduced by any message; the hold rule still applies
+        if not flow.label.source.startswith("email:"):
+            return True  # e.g. an account taken from an untrusted web page
+        email_id = flow.label.source.split(":", 1)[1]
+        email = next((e for e in env.inbox if e.id == email_id), None)
+        if email is None:
+            return True
+        _, sender = parseaddr(email.from_addr)
+        if not env.is_trusted_contact(sender):
+            return True
+        spoofing = {"lookalike_domain", "display_name_spoof", "reply_to_mismatch"}
+        return any(sig.signal_type in spoofing for sig in analyze_email_signals(email, env))
 
     def _auto_limit(self, env: Environment, target: str) -> float:
         payee = env.get_payee(target) if target else None

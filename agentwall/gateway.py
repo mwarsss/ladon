@@ -11,6 +11,7 @@ impersonation heuristics, isolated prompt injection judge, and human-in-the-loop
 from __future__ import annotations
 
 import datetime
+from urllib.parse import unquote_plus
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
@@ -86,6 +87,27 @@ class Gateway:
             except Exception:
                 pass
 
+    def provenance_for(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Which labelled data flows into this call, and which untrusted content was in context."""
+        flow_args = arguments
+        if tool_name == "fetch_url":
+            flow_args = {"url": unquote_plus(str(arguments.get("url", "")))}
+        flows = [
+            {
+                "source": f.label.source,
+                "trust": f.label.trust,
+                "sensitivity": f.label.sensitivity,
+                "argument": f.argument_key,
+                "match": f.match_type,
+                "evidence": f.matched_snippet,
+            }
+            for f in self.taint_tracker.analyze_arguments(flow_args)
+        ]
+        return {
+            "flows": flows,
+            "untrusted_in_context": list(self.taint_tracker.untrusted_sources_in_context),
+        }
+
     def execute(self, tool_name: str, arguments: Dict[str, Any]) -> GatewayDecision:
         """Intercept and process a tool invocation."""
         category = get_tool_category(tool_name)
@@ -127,6 +149,7 @@ class Gateway:
             return decision
 
         # PROTECTED MODE: Zero-trust policy and taint evaluation
+        provenance = self.provenance_for(tool_name, arguments)
         policy_result: PolicyDecision = self.policy_engine.evaluate(
             tool_name=tool_name,
             arguments=arguments,
@@ -175,6 +198,7 @@ class Gateway:
                     self.emit_event(
                         "decision",
                         {
+                            "provenance": provenance,
                             "decision": "allow",
                             "reason": decision.reason,
                             "tool_name": tool_name,
@@ -201,6 +225,7 @@ class Gateway:
                 self.emit_event(
                     "decision",
                     {
+                        "provenance": provenance,
                         "decision": "require_approval",
                         "reason": decision_reason,
                         "tool_name": tool_name,
@@ -221,7 +246,8 @@ class Gateway:
                 env=self.env,
                 impersonation_signals=self.impersonation_signals,
                 judge_verdict=self.last_judge_verdict,
-                blocked_decisions=[
+                blocked_decisions=[d for d in self.call_history if d.decision == "block"]
+                + [
                     GatewayDecision(
                         allowed=False,
                         decision="block",
@@ -244,6 +270,7 @@ class Gateway:
             self.emit_event(
                 "decision",
                 {
+                    "provenance": provenance,
                     "decision": "block",
                     "reason": decision_reason,
                     "tool_name": tool_name,
@@ -316,6 +343,7 @@ class Gateway:
         self.emit_event(
             "decision",
             {
+                "provenance": provenance,
                 "decision": "allow",
                 "reason": decision_reason,
                 "tool_name": tool_name,

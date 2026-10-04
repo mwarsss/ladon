@@ -40,12 +40,13 @@ KEYS_DIR = BASE_DIR / "keys"
 
 app = FastAPI(title="AgentWall Dashboard API", version="0.1.0")
 
+# The dashboard is served from the same origin, so no cross-site access is needed.
+ALLOWED_ORIGINS = os.environ.get("AGENTWALL_ALLOWED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # Global State Container
@@ -77,6 +78,8 @@ class ServerState:
 
 
 state = ServerState()
+
+KNOWN_SCENARIO_IDS = {p.stem for p in SCENARIOS_DIR.glob("*.json")}
 
 
 class RunRequest(BaseModel):
@@ -173,7 +176,7 @@ def _run_worker(scenario_id: str, mode: str, llm_mode: str) -> None:
     """Background worker executing scenario agent loop."""
     try:
         scenario_file = SCENARIOS_DIR / f"{scenario_id}.json"
-        if not scenario_file.exists():
+        if scenario_id not in KNOWN_SCENARIO_IDS or not scenario_file.exists():
             state.broadcast_event({"type": "error", "message": f"Scenario not found: {scenario_id}"})
             return
 
@@ -239,6 +242,10 @@ def _run_worker(scenario_id: str, mode: str, llm_mode: str) -> None:
 @app.post("/api/run")
 def start_run(req: RunRequest, background_tasks: BackgroundTasks):
     """Start executing a scenario in background."""
+    if req.scenario_id not in KNOWN_SCENARIO_IDS:
+        raise HTTPException(status_code=404, detail="Unknown scenario.")
+    if req.mode not in ("protected", "unprotected") or req.llm_mode not in ("replay", "auto", "live"):
+        raise HTTPException(status_code=422, detail="Invalid mode.")
     with state.lock:
         if state.is_running:
             raise HTTPException(status_code=400, detail="A scenario run is already in progress.")
@@ -398,7 +405,7 @@ def index_page():
         return HTMLResponse(f.read())
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8000) -> None:
+def start_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     import uvicorn
     uvicorn.run("agentwall.server:app", host=host, port=port, reload=False)
 

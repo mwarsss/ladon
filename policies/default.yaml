@@ -64,9 +64,9 @@ rules:
   # 6. Financial Fraud: Block unverified account when instructed by untrusted message
   - id: block_untrusted_payee_financial
     category: financial
-    condition: "target_not_in_payee_registry and has_untrusted_instruction_provenance"
+    condition: "target_not_in_payee_registry and payee_introduced_by_unverified_sender"
     decision: block
-    reason: "Blocked payment of ${amount} to unverified account {to}: bank account details first appeared in an untrusted message and are not registered in the payee registry."
+    reason: "Blocked payment of ${amount} to unverified account {to}: the account came from an unknown or spoofed sender and is not in the payee registry."
 
   # 7. Financial Fraud: Block unverified account when lookalike sender detected
   - id: block_lookalike_instructed_financial

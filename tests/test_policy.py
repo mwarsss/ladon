@@ -118,3 +118,18 @@ def test_hold_unverified_payee_for_approval(policy_engine, mock_env):
         impersonation_signals=[],
     )
     assert decision.decision == "require_approval"
+
+
+def test_new_account_from_known_supplier_is_held_not_blocked():
+    import json
+    from pathlib import Path
+    from agentwall.environment import Environment
+    from agentwall.gateway import Gateway
+
+    data = json.loads((Path(__file__).resolve().parent.parent / "scenarios" / "d_verify_bank_change.json").read_text())
+    env = Environment.from_scenario(data)
+    gw = Gateway(env, mode="protected")
+    for email in env.inbox:
+        gw.execute("read_email", {"id": email.id})
+    d = gw.execute("make_payment", {"to": "ACC-88301", "amount": 4500.0, "reference": "INV-7721"})
+    assert d.decision == "require_approval"
