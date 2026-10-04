@@ -8,6 +8,19 @@ rules:
     decision: allow
     reason: "Internal drafting operations do not leave the organizational boundary."
 
+  # URL exfiltration: a web request can carry data out in its address.
+  - id: block_url_exfiltration
+    tools: ["fetch_url"]
+    condition: "has_confidential_flow"
+    decision: block
+    reason: "Data exfiltration blocked: the requested URL {url} contains confidential data from {confidential_source}."
+
+  - id: block_url_payload_to_unknown_domain
+    tools: ["fetch_url"]
+    condition: "url_sends_payload_to_unknown_domain"
+    decision: block
+    reason: "Blocked request to unknown site {url}: unrecognised domains may not receive data in a web address."
+
   # 2. Allow read operations (inspected by taint tracking)
   - id: allow_safe_reads
     categories: ["read_private", "read_untrusted"]
@@ -27,6 +40,19 @@ rules:
     condition: "target_is_untrusted_entity_or_lookalike"
     decision: block
     reason: "Recipient address {to} originated solely inside untrusted messages or imitates company domain."
+
+  # Duplicate or unusually large payments are held even for known suppliers.
+  - id: hold_duplicate_payment
+    category: financial
+    condition: "is_duplicate_reference"
+    decision: require_approval
+    reason: "Hold for verification: reference {reference} has already been paid. Duplicate invoices are a common fraud pattern."
+
+  - id: hold_large_payment_to_payee
+    category: financial
+    condition: "target_in_payee_registry and amount_exceeds_auto_limit"
+    decision: require_approval
+    reason: "Hold for verification: ${amount} to {to} exceeds the automatic payment limit of ${limit}."
 
   # 5. Financial Protection: Allow payment to known, verified suppliers in payee registry
   - id: allow_verified_payee
@@ -79,3 +105,8 @@ default_decisions:
   read_untrusted:
     decision: allow
     reason: "Default Allow for reads."
+
+limits:
+  # Payments to registered suppliers above this amount are held for a human,
+  # unless the payee entry sets its own max_auto_amount.
+  auto_payment_limit: 5000

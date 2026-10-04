@@ -98,3 +98,27 @@ def test_tool_result_tracking():
     assert len(tracker.registry) == 2
     assert tracker.registry[1].trust == "untrusted"
     assert "ACC-888999" in tracker.untrusted_entities
+
+
+def test_single_shared_word_is_not_a_confidential_flow():
+    tracker = TaintTracker()
+    tracker.register(
+        source="file:board/minutes.txt",
+        content="Board minutes: the merger with Zambezi Haulage is confidential until the announcement in March.",
+        trust="trusted",
+        sensitivity="confidential",
+    )
+    args = {"to": "grace@client.example", "body": "Hi Grace, the truck arrives Monday at the depot."}
+    assert tracker.has_confidential_flow(args) is None
+
+
+def test_partial_csv_row_is_a_confidential_flow():
+    tracker = TaintTracker()
+    tracker.register(
+        source="file:finance/q3_payroll.csv",
+        content="employee_id,name,role,salary,bank_account\nEMP-001,Tendai Moyo,CEO,$12500,CBZ-991244",
+        trust="trusted",
+        sensitivity="confidential",
+    )
+    flow = tracker.has_confidential_flow({"body": "FYI Tendai Moyo (CEO) is on 12500 a month"})
+    assert flow is not None

@@ -8,10 +8,10 @@ Unit-testable without requiring any LLM.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote_plus, urlsplit
 
 import yaml
 
@@ -25,6 +25,20 @@ class PolicyDecision:
     decision: str  # "allow", "block", "require_approval"
     reason: str
     rule_id: str
+
+
+KNOWN_CONDITIONS = {
+    "has_confidential_flow",
+    "target_is_untrusted_entity_or_lookalike",
+    "target_not_in_payee_registry",
+    "target_in_payee_registry",
+    "has_untrusted_instruction_provenance",
+    "has_lookalike_signal",
+    "target_in_trusted_contacts",
+    "url_sends_payload_to_unknown_domain",
+    "amount_exceeds_auto_limit",
+    "is_duplicate_reference",
+}
 
 
 class PolicyEngine:
@@ -48,6 +62,17 @@ class PolicyEngine:
 
         self.rules = data.get("rules", [])
         self.default_decisions = data.get("default_decisions", {})
+        self.limits: Dict[str, float] = data.get("limits", {})
+        # A misspelled condition must not silently disable a security rule.
+        for rule in self.rules:
+            condition = rule.get("condition")
+            if not condition:
+                continue
+            for atom in condition.split(" and "):
+                if atom.strip() not in KNOWN_CONDITIONS:
+                    raise ValueError(
+                        f"Policy rule '{rule.get('id')}' uses unknown condition '{atom.strip()}'"
+                    )
 
     def evaluate(
         self,
@@ -62,8 +87,12 @@ class PolicyEngine:
         tracker = taint_tracker or TaintTracker(env=env)
         signals = impersonation_signals or []
 
-        # Context for condition evaluation
-        confidential_flow = tracker.has_confidential_flow(arguments)
+        # Context for condition evaluation. URLs are decoded first so
+        # percent-encoding can't hide data being smuggled out in a request.
+        flow_args = arguments
+        if tool_name == "fetch_url":
+            flow_args = {"url": unquote_plus(str(arguments.get("url", "")))}
+        confidential_flow = tracker.has_confidential_flow(flow_args)
         to_arg = str(arguments.get("to", ""))
         amount_arg = arguments.get("amount", 0.0)
 
@@ -74,6 +103,9 @@ class PolicyEngine:
             rule_categories = rule.get("categories", [rule_category] if rule_category else [])
 
             if rule_categories and category not in rule_categories:
+                continue
+            rule_tools = rule.get("tools")
+            if rule_tools and tool_name not in rule_tools:
                 continue
 
             condition = rule.get("condition")
@@ -98,6 +130,9 @@ class PolicyEngine:
                     amount=f"{amount_arg:,.2f}" if isinstance(amount_arg, (int, float)) else str(amount_arg),
                     confidential_source=confidential_src,
                     tool=tool_name,
+                    url=str(arguments.get("url", "")),
+                    reference=str(arguments.get("reference", "")),
+                    limit=f"{self._auto_limit(env, to_arg):,.2f}",
                 )
                 return PolicyDecision(
                     decision=rule.get("decision", "allow"),
@@ -173,4 +208,35 @@ class PolicyEngine:
             to_addr = str(arguments.get("to", ""))
             return env.is_trusted_contact(to_addr)
 
-        return False
+        elif cond == "url_sends_payload_to_unknown_domain":
+            parts = urlsplit(str(arguments.get("url", "")))
+            host = (parts.hostname or "").lower()
+            if not (parts.query or parts.fragment):
+                return False
+            return host not in self._known_domains(env)
+
+        elif cond == "amount_exceeds_auto_limit":
+            try:
+                amount = float(arguments.get("amount", 0))
+            except (TypeError, ValueError):
+                return True
+            return amount > self._auto_limit(env, str(arguments.get("to", "")))
+
+        elif cond == "is_duplicate_reference":
+            return env.is_duplicate_payment(str(arguments.get("reference", "")))
+
+        raise ValueError(f"Unknown policy condition: {cond}")
+
+    def _auto_limit(self, env: Environment, target: str) -> float:
+        payee = env.get_payee(target) if target else None
+        if payee and payee.max_auto_amount is not None:
+            return float(payee.max_auto_amount)
+        return float(self.limits.get("auto_payment_limit", 5000))
+
+    @staticmethod
+    def _known_domains(env: Environment) -> set:
+        domains = {env.company_domain}
+        domains.update(c.email.split("@")[-1].lower() for c in env.trusted_contacts if "@" in c.email)
+        domains.update((urlsplit(u).hostname or "").lower() for u in env.web_pages)
+        domains.discard("")
+        return domains

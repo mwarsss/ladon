@@ -42,6 +42,7 @@ class Payee:
     name: str
     account: str
     bank: Optional[str] = None
+    max_auto_amount: Optional[float] = None
 
 
 @dataclass
@@ -152,6 +153,7 @@ class Environment:
                 name=payee["name"],
                 account=payee["account"],
                 bank=payee.get("bank"),
+                max_auto_amount=payee.get("max_auto_amount"),
             )
 
         scammer_accounts: Set[str] = set(data.get("scammer_accounts", []))
@@ -233,6 +235,10 @@ class Environment:
         record = DraftReply(email_id=email_id, body=body, timestamp=timestamp)
         self.drafts.append(record)
         return record
+
+    def is_duplicate_payment(self, reference: str) -> bool:
+        ref = reference.strip().lower()
+        return bool(ref) and any(p.reference.strip().lower() == ref for p in self.payments)
 
     @property
     def total_money_lost(self) -> float:

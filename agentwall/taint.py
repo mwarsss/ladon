@@ -13,12 +13,62 @@ from __future__ import annotations
 
 import datetime
 import re
+from functools import lru_cache
+from urllib.parse import unquote_plus
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-from rapidfuzz import fuzz
 
 from agentwall.environment import Environment
+
+
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "from", "your", "you", "our", "are",
+    "was", "were", "will", "have", "has", "had", "not", "but", "all", "any", "can",
+    "into", "onto", "about", "please", "thank", "thanks", "dear", "regards", "hello",
+    "kind", "best", "would", "could", "should", "there", "their", "they", "them",
+    "what", "when", "where", "which", "while", "been", "being", "also", "just",
+}
+
+
+def _tokens(text: str) -> List[str]:
+    return _TOKEN_RE.findall(unquote_plus(text).lower())
+
+
+def _shingles(tokens: List[str], n: int = 3) -> Set[str]:
+    out = set()
+    for i in range(len(tokens) - n + 1):
+        window = tokens[i : i + n]
+        if any(len(t) >= 4 and t not in _STOPWORDS for t in window):
+            out.add(" ".join(window))
+    return out
+
+
+@dataclass(frozen=True)
+class _Fingerprint:
+    lines: tuple
+    shingles: frozenset
+    distinctive: frozenset
+    terms: frozenset
+
+
+@lru_cache(maxsize=512)
+def _fingerprint(content: str) -> Optional[_Fingerprint]:
+    if not content.strip():
+        return None
+    lines = []
+    for raw in content.splitlines():
+        norm = " ".join(_tokens(raw))
+        if len(norm) >= 12:
+            lines.append(norm)
+    tokens = _tokens(content)
+    return _Fingerprint(
+        lines=tuple(lines),
+        shingles=frozenset(_shingles(tokens)),
+        distinctive=frozenset(t for t in tokens if len(t) >= 4 and any(c.isdigit() for c in t)),
+        terms=frozenset(t for t in tokens if len(t) >= 4 and t not in _STOPWORDS),
+    )
 
 
 @dataclass
@@ -167,44 +217,57 @@ class TaintTracker:
                             break
 
             # 2. Check each labelled value in registry
+            arg_tokens = _tokens(arg_val_str)
+            arg_norm = " ".join(arg_tokens)
+            arg_shingles = _shingles(arg_tokens)
+            arg_token_set = set(arg_tokens)
             for label in self.registry:
-                content = label.content.strip()
-                if not content:
+                fp = _fingerprint(label.content)
+                if fp is None:
                     continue
 
-                # Exact substring match (for chunks > 12 chars)
-                lines = [line.strip() for line in content.splitlines() if len(line.strip()) >= 12]
-                exact_hit = False
-                for line in lines:
-                    if line in arg_val_str:
-                        flows.append(
-                            TaintFlow(
-                                label=label,
-                                argument_key=arg_key,
-                                match_type="exact",
-                                similarity=100.0,
-                                matched_snippet=line[:80],
-                            )
+                exact = next((line for line in fp.lines if line in arg_norm), None)
+                if exact:
+                    flows.append(
+                        TaintFlow(
+                            label=label,
+                            argument_key=arg_key,
+                            match_type="exact",
+                            similarity=100.0,
+                            matched_snippet=exact[:80],
                         )
-                        exact_hit = True
-                        break
-
-                if exact_hit:
+                    )
                     continue
 
-                # Fuzzy token matching (for paraphrased or reformatted data)
-                if len(arg_val_str) > 20 and len(content) > 20:
-                    similarity = fuzz.partial_token_set_ratio(arg_val_str, content)
-                    if similarity >= 80.0:
-                        flows.append(
-                            TaintFlow(
-                                label=label,
-                                argument_key=arg_key,
-                                match_type="fuzzy",
-                                similarity=similarity,
-                                matched_snippet=arg_val_str[:80],
-                            )
+                # Fragments: a partial row or reformatted excerpt still carries
+                # at least two pieces of evidence: distinctive values or phrases.
+                shared_ids = fp.distinctive & arg_token_set
+                shared_shingles = fp.shingles & arg_shingles
+                if len(shared_ids) + len(shared_shingles) >= 2:
+                    evidence = sorted(shared_ids) or sorted(shared_shingles)
+                    flows.append(
+                        TaintFlow(
+                            label=label,
+                            argument_key=arg_key,
+                            match_type="fragment",
+                            similarity=100.0,
+                            matched_snippet=", ".join(evidence)[:80],
                         )
+                    )
+                    continue
+
+                # Paraphrase: most of the document's key terms reappear.
+                shared_terms = fp.terms & arg_token_set
+                if len(shared_terms) >= 4 and len(shared_terms) >= 0.5 * len(fp.terms):
+                    flows.append(
+                        TaintFlow(
+                            label=label,
+                            argument_key=arg_key,
+                            match_type="fuzzy",
+                            similarity=round(100.0 * len(shared_terms) / len(fp.terms), 1),
+                            matched_snippet=", ".join(sorted(shared_terms))[:80],
+                        )
+                    )
 
         return flows
 
