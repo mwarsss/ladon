@@ -180,14 +180,18 @@ def main() -> None:
         if ev_type == "tool_call":
             print(f" [TOOL CALL] {event.get('tool_name')}({event.get('arguments')})")
         elif ev_type == "decision":
-            dec = event.get("decision", "").upper()
-            icon = "[ALLOW]" if dec == "ALLOW" else "[BLOCK]"
+            dec = event.get("decision", "")
+            icon = {"allow": "[ALLOW]", "block": "[BLOCK]", "require_approval": "[HOLD] "}.get(dec, f"[{dec.upper()}]")
             print(f"  └─ {icon} {event.get('reason')}")
 
     gateway.add_event_listener(console_event_listener)
 
-    llm = create_llm_provider(mode=args.llm_mode, scenario_name=scenario_id)
-    result = run_agent_loop(env=env, gateway=gateway, llm=llm, user_prompt=args.prompt)
+    try:
+        llm = create_llm_provider(mode=args.llm_mode, scenario_name=scenario_id)
+        result = run_agent_loop(env=env, gateway=gateway, llm=llm, user_prompt=args.prompt)
+    except (ValueError, RuntimeError) as exc:
+        print(f"\nError: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     print("\n------------------ RUN SUMMARY -------------------")
     print(f"Completed turns : {result.turns}")

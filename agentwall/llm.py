@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -204,11 +205,17 @@ class GeminiProvider(BaseLLMProvider):
                     )
                 )
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=config,
-        )
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=config,
+            )
+        except Exception as exc:  # network errors, invalid key, free-tier rate limits (429)
+            raise RuntimeError(
+                f"Gemini API call failed ({type(exc).__name__}: {exc}). "
+                "Check GEMINI_API_KEY and quota, or run with --llm-mode replay."
+            ) from exc
 
         extracted_text = ""
         tool_calls: List[Dict[str, Any]] = []
@@ -350,10 +357,17 @@ def create_llm_provider(
         if os.getenv("GEMINI_API_KEY"):
             return GeminiProvider()
 
-    # Fallback to replay if recording exists
+    if mode == "live":
+        raise ValueError(
+            "Live mode needs an API key: set GEMINI_API_KEY (or LLM_PROVIDER=featherless with "
+            "FEATHERLESS_API_KEY) in .env, or use --llm-mode replay."
+        )
+
+    # Auto mode: fall back to the recorded run, and say so.
     if scenario_name:
         rec_path = ReplayManager.RECORDINGS_DIR / f"{scenario_name}.json"
         if rec_path.exists():
+            print(f"[agentwall] No API key set: replaying the recorded run for '{scenario_name}'.", file=sys.stderr)
             return ReplayProvider(scenario_name)
 
     # If neither key nor replay file exists, provide clear error
