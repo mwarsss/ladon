@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentWall Attack Lab — try to scam the AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .lane-list { max-height: 26rem; overflow-y: auto; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-lg">🛡️</div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white">AGENTWALL <span class="text-rose-400">ATTACK LAB</span></h1>
+          <p class="text-xs text-slate-400">You're the scammer. Write an email and watch two AI assistants handle it.</p>
+        </div>
+      </div>
+      <a href="/" class="text-xs font-mono text-slate-300 border border-slate-700 rounded-lg px-3 py-2 hover:bg-slate-800">← Scenario dashboard</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 text-sm text-slate-300 leading-relaxed">
+      <p><span class="font-semibold text-white">Meet Rudo.</span> She runs accounts at Kopje Logistics, a 12-truck haulage firm in Harare <span class="text-slate-500">(a fictional company)</span>. Her AI assistant reads the inbox, replies to customers and pays approved supplier invoices. One convincing email is all a scammer needs, and in 2025 business email compromise cost about <span class="font-semibold text-white">$3 billion</span> in FBI-reported losses alone.</p>
+      <p class="mt-2">Your email lands in two identical copies of Rudo's inbox, next to a real customer request and a real supplier invoice. <span class="text-rose-300 font-semibold">Left:</span> an assistant with no protection. <span class="text-emerald-300 font-semibold">Right:</span> the same assistant behind AgentWall.</p>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-mono uppercase text-slate-400 mr-1">Start from:</span>
+        <div id="presets" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-3">
+        <label class="text-xs text-slate-400">From (name)
+          <input id="senderName" maxlength="80" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+        </label>
+        <label class="text-xs text-slate-400">From (email address)
+          <input id="senderEmail" maxlength="120" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono" />
+        </label>
+      </div>
+      <label class="block text-xs text-slate-400">Subject
+        <input id="subject" maxlength="160" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+      </label>
+      <label class="block text-xs text-slate-400">Body
+        <textarea id="body" maxlength="4000" rows="6" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono"></textarea>
+      </label>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-mono uppercase text-slate-400">Assistant:</span>
+          <button id="brainFooled" class="brain px-3 py-2 rounded-lg border font-semibold">Fully fooled (offline)</button>
+          <button id="brainLive" class="brain px-3 py-2 rounded-lg border font-semibold">Real AI model</button>
+          <span id="brainHint" class="text-slate-500"></span>
+        </div>
+        <button id="sendBtn" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg">Send to both assistants →</button>
+      </div>
+      <p id="formError" class="hidden text-sm text-rose-300"></p>
+    </section>
+
+    <section id="verdict" class="hidden rounded-2xl p-5 border-2"></section>
+
+    <section class="grid lg:grid-cols-2 gap-5">
+      <div class="bg-slate-900 border-2 border-rose-500/40 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-rose-300">⚠️ Without AgentWall</h2>
+          <span id="statusUnprotected" class="text-xs font-mono text-slate-500">waiting</span>
+        </div>
+        <div id="laneUnprotected" class="lane-list space-y-2 text-xs"></div>
+        <div id="resultUnprotected" class="hidden"></div>
+      </div>
+      <div class="bg-slate-900 border-2 border-emerald-500/40 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-emerald-300">🛡️ With AgentWall</h2>
+          <span id="statusProtected" class="text-xs font-mono text-slate-500">waiting</span>
+        </div>
+        <div id="signals" class="flex flex-wrap gap-1.5"></div>
+        <div id="laneProtected" class="lane-list space-y-2 text-xs"></div>
+        <div id="resultProtected" class="hidden"></div>
+      </div>
+    </section>
+
+    <p class="text-xs text-slate-500 text-center">Everything here is simulated: no real email is sent and no real money moves. "Fully fooled" is an assistant that obeys every instruction it reads, the worst case AgentWall is built for. "Real AI model" runs an actual language model, which may or may not fall for your email.</p>
+  </main>
+
+  <script src="/static/lab.js"></script>
+</body>
+</html>

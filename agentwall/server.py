@@ -30,6 +30,7 @@ from agentwall.approvals import ApprovalQueue
 from agentwall.audit import AuditLogger
 from agentwall.environment import Environment
 from agentwall.gateway import Gateway
+from agentwall.lab import router as lab_router
 from agentwall.llm import create_llm_provider
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -394,6 +395,16 @@ def reset_system():
 # Mount static web UI files
 if WEB_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+
+
+app.include_router(lab_router)
+
+
+@app.get("/lab", response_class=HTMLResponse)
+def attack_lab_page():
+    """Attack Lab: one email, unprotected vs protected, side by side."""
+    lab_file = WEB_DIR / "lab.html"
+    return HTMLResponse(lab_file.read_text(encoding="utf-8"))
 
 
 @app.get("/", response_class=HTMLResponse)
