@@ -1,0 +1,81 @@
+# AgentWall Default Zero-Trust Security Policies
+# First matching rule wins. Unmatched send_external and financial default to deny.
+
+rules:
+  # 1. Allow internal drafts (safe, does not leave boundary)
+  - id: allow_internal_drafts
+    category: write_internal
+    decision: allow
+    reason: "Internal drafting operations do not leave the organizational boundary."
+
+  # 2. Allow read operations (inspected by taint tracking)
+  - id: allow_safe_reads
+    categories: ["read_private", "read_untrusted"]
+    decision: allow
+    reason: "Read operations allowed under observation and provenance tagging."
+
+  # 3. Exfiltration Backstop: Block any external communication carrying confidential data
+  - id: block_confidential_exfiltration
+    category: send_external
+    condition: "has_confidential_flow"
+    decision: block
+    reason: "Data exfiltration blocked: Attempt to send confidential information from {confidential_source} to external address {to}."
+
+  # 4. Block send_external to lookalike or untrusted entity
+  - id: block_send_to_untrusted_entity
+    category: send_external
+    condition: "target_is_untrusted_entity_or_lookalike"
+    decision: block
+    reason: "Recipient address {to} originated solely inside untrusted messages or imitates company domain."
+
+  # 5. Financial Protection: Allow payment to known, verified suppliers in payee registry
+  - id: allow_verified_payee
+    category: financial
+    condition: "target_in_payee_registry"
+    decision: allow
+    reason: "Payment of ${amount} to verified supplier {to} authorized against registered payee account."
+
+  # 6. Financial Fraud: Block unverified account when instructed by untrusted message
+  - id: block_untrusted_payee_financial
+    category: financial
+    condition: "target_not_in_payee_registry and has_untrusted_instruction_provenance"
+    decision: block
+    reason: "Blocked payment of ${amount} to unverified account {to}: bank account details first appeared in an untrusted message and are not registered in the payee registry."
+
+  # 7. Financial Fraud: Block unverified account when lookalike sender detected
+  - id: block_lookalike_instructed_financial
+    category: financial
+    condition: "target_not_in_payee_registry and has_lookalike_signal"
+    decision: block
+    reason: "Blocked payment of ${amount} to unverified account {to}: requested by sender impersonating company leadership via lookalike domain."
+
+  # 8. Unverified payee requires human approval (e.g. genuine bank change request from real supplier)
+  - id: require_approval_new_payee
+    category: financial
+    condition: "target_not_in_payee_registry"
+    decision: require_approval
+    reason: "Hold for verification: Payment of ${amount} to new or altered bank account {to}. Bank detail changes must be verified via a trusted phone call."
+
+  # 9. Send external to verified trusted contacts
+  - id: allow_trusted_external_send
+    category: send_external
+    condition: "target_in_trusted_contacts"
+    decision: allow
+    reason: "External email to trusted contact {to} authorized."
+
+default_decisions:
+  send_external:
+    decision: block
+    reason: "Default Deny: External communication requires explicit policy approval."
+  financial:
+    decision: block
+    reason: "Default Deny: Financial transfers require explicit authorization."
+  write_internal:
+    decision: allow
+    reason: "Default Allow for internal writes."
+  read_private:
+    decision: allow
+    reason: "Default Allow for reads."
+  read_untrusted:
+    decision: allow
+    reason: "Default Allow for reads."

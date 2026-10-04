@@ -5,7 +5,7 @@ Every action the AI assistant attempts passes through this gateway.
 In UNPROTECTED mode, actions pass through directly to the environment
 (allowing attacks to succeed for comparison and vulnerability demonstration).
 In PROTECTED mode, actions are evaluated against security policies, taint tracking,
-and human-in-the-loop approvals.
+impersonation heuristics, and human-in-the-loop approvals.
 """
 
 from __future__ import annotations
@@ -14,7 +14,11 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
+from agentwall.audit import AuditLogger
 from agentwall.environment import Environment
+from agentwall.impersonation import ImpersonationSignal, analyze_email_signals
+from agentwall.policy import PolicyDecision, PolicyEngine
+from agentwall.taint import TaintTracker
 from agentwall.tools import execute_tool, get_tool_category, get_tool_metadata
 
 
@@ -37,16 +41,17 @@ class Gateway:
         self,
         env: Environment,
         mode: str = "unprotected",  # "unprotected" or "protected"
-        policy_engine: Optional[Any] = None,
-        taint_tracker: Optional[Any] = None,
-        audit_logger: Optional[Any] = None,
+        policy_engine: Optional[PolicyEngine] = None,
+        taint_tracker: Optional[TaintTracker] = None,
+        audit_logger: Optional[AuditLogger] = None,
     ):
         self.env = env
         self.mode = mode.lower()
-        self.policy_engine = policy_engine
-        self.taint_tracker = taint_tracker
+        self.policy_engine = policy_engine or PolicyEngine()
+        self.taint_tracker = taint_tracker or TaintTracker(env=self.env)
         self.audit_logger = audit_logger
 
+        self.impersonation_signals: List[ImpersonationSignal] = []
         self.event_listeners: List[Callable[[Dict[str, Any]], None]] = []
         self.call_history: List[GatewayDecision] = []
 
@@ -55,7 +60,7 @@ class Gateway:
         self.event_listeners.append(listener)
 
     def emit_event(self, event_type: str, data: Dict[str, Any]) -> None:
-        """Broadcast an event to all registered listeners."""
+        """Broadcast an event to all registered listeners and audit logger."""
         payload = {
             "type": event_type,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -67,7 +72,7 @@ class Gateway:
             except Exception:
                 pass
 
-        if self.audit_logger and hasattr(self.audit_logger, "log_event"):
+        if self.audit_logger:
             try:
                 self.audit_logger.log_event(event_type, payload)
             except Exception:
@@ -113,20 +118,18 @@ class Gateway:
             )
             return decision
 
-        # PROTECTED MODE: Security evaluation (Phase 2 & 3 extensions)
-        if self.policy_engine:
-            policy_result = self.policy_engine.evaluate(
-                tool_name=tool_name,
-                arguments=arguments,
-                category=category,
-                env=self.env,
-                taint_tracker=self.taint_tracker,
-            )
-            decision_action = policy_result.decision
-            decision_reason = policy_result.reason
-        else:
-            decision_action = "allow"
-            decision_reason = "Default allow (no policy configured)"
+        # PROTECTED MODE: Zero-trust policy and taint evaluation
+        policy_result: PolicyDecision = self.policy_engine.evaluate(
+            tool_name=tool_name,
+            arguments=arguments,
+            category=category,
+            env=self.env,
+            taint_tracker=self.taint_tracker,
+            impersonation_signals=self.impersonation_signals,
+        )
+
+        decision_action = policy_result.decision
+        decision_reason = policy_result.reason
 
         if decision_action == "block":
             tool_output = {
@@ -155,8 +158,37 @@ class Gateway:
             )
             return decision
 
-        # If allowed, execute tool
+        # If allowed, execute the tool against the environment
         tool_output = execute_tool(self.env, tool_name, arguments)
+
+        # Track taint and provenance on the result
+        self.taint_tracker.track_tool_result(
+            tool_name=tool_name,
+            arguments=arguments,
+            output=tool_output,
+            env=self.env,
+        )
+
+        # If an email was read, inspect for impersonation signals
+        if tool_name == "read_email" and isinstance(tool_output, dict):
+            email_id = str(arguments.get("id", ""))
+            for email in self.env.inbox:
+                if email.id == email_id:
+                    signals = analyze_email_signals(email, self.env)
+                    for sig in signals:
+                        if sig not in self.impersonation_signals:
+                            self.impersonation_signals.append(sig)
+                            self.emit_event(
+                                "impersonation_signal",
+                                {
+                                    "signal_type": sig.signal_type,
+                                    "severity": sig.severity,
+                                    "evidence": sig.evidence,
+                                    "source": email_id,
+                                },
+                            )
+                    break
+
         decision = GatewayDecision(
             allowed=True,
             decision="allow",

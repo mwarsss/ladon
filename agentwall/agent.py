@@ -161,9 +161,11 @@ def main() -> None:
     with open(scenario_path, "r", encoding="utf-8") as f:
         scenario_data = json.load(f)
 
+    from agentwall.audit import AuditLogger
     scenario_id = scenario_data.get("scenario_id", scenario_path.stem)
     env = Environment.from_scenario(scenario_data)
-    gateway = Gateway(env=env, mode=args.mode)
+    audit_logger = AuditLogger()
+    gateway = Gateway(env=env, mode=args.mode, audit_logger=audit_logger)
 
     print(f"\n==================================================")
     print(f" AGENTWALL ASSISTANT RUNNER")

@@ -7,6 +7,7 @@ __pycache__/
 .coverage
 htmlcov/
 *.log
+logs/
 .env
 keys/
 .DS_Store
