@@ -23,8 +23,8 @@ This isn't hypothetical. In our recorded demo, a real model (Qwen 2.5 72B Instru
 | The prompt asks to… | AgentWall |
 |---|---|
 | **Recognise** scams and impersonation | Lookalike domains (edit distance + homoglyphs such as l/i, rn/m), display-name spoofing, reply-to mismatches, new or changed bank accounts, pressure tactics, and hidden instructions in messages (heuristics, plus an isolated AI judge in live mode) |
-| **Prevent** fraud | Tracks where every piece of data came from and blocks payments to accounts introduced by unknown or spoofed senders, and confidential data leaving the company by email or inside a web address |
-| **Verify** | Bank-detail changes, duplicate invoices and unusually large payments are held until a human confirms them through a trusted channel |
+| **Prevent** fraud | Tracks where every piece of data came from and blocks payments to accounts introduced by unknown or spoofed senders, and confidential data leaving the company by email or inside a web address. Only pays accounts covered by the owner's **signed payment mandate**, so a hacked supplier list can't redirect money |
+| **Verify** | Bank-detail changes, duplicate invoices and unusually large payments are held. AgentWall texts a one-time code to the supplier's number **from company records** (never from the email), and the payment is released only when the approver types the code they got by calling that number |
 | **Respond** | A scam report with each red flag, the quoted evidence, what was prevented and who to call, plus a tamper-evident, cryptographically signed audit log |
 
 ## Quick start (no API key needed)
@@ -52,11 +52,13 @@ python -m agentwall.server
 
 Open **http://127.0.0.1:8000** for the scenario dashboard, or **http://127.0.0.1:8000/lab** for the Attack Lab.
 
-**Attack Lab.** Pick a preset (fake CEO, gift cards, lookalike supplier, hidden instruction, payroll "verification" link, or a genuine control email) or write your own. Choose the assistant:
+**Attack Lab.** Pick a preset (fake CEO, gift cards, lookalike supplier, hidden instruction, payroll "verification" link, a supplier asking to be paid by EcoCash, a fake EcoCash "sent by mistake" refund, or a genuine control email) or write your own. Tick **hack the supplier list** to also swap a supplier's bank account in Rudo's records, the way a compromised supplier database would. Choose the assistant:
 - **Fully fooled (offline):** obeys every instruction it reads, the worst case. Works without any API key.
 - **Real AI model:** an actual model via Featherless or Gemini (needs a key in `.env`), capped per visitor and per day. It may or may not fall for your email; that's the point.
 
 If `AGENTBOXD_API_KEY` and `AGENTBOXD_INBOX_ID` are set, the lab also shows a **real inbox**: email a scam to its address from your own account and run it through both assistants seconds later. Agentboxd's arrival screening (SPF/DMARC failures, AI phishing flags) is shown next to AgentWall's own signals.
+
+A **public scoreboard** at the top counts every visitor's attempts: scams tried, stopped, got through, money kept from scammers, the most common tricks, and any runs that got through. It stores counts only, never what people wrote.
 
 **Scenario dashboard.** Pick a scenario, choose Unprotected or Protected, and press **Run scenario**.
 
@@ -65,7 +67,7 @@ If `AGENTBOXD_API_KEY` and `AGENTBOXD_INBOX_ID` are set, the lab also shows a **
 | A: Attack email | Unprotected | The real model pays $8,450 to the scammer and emails the fake CEO back |
 | B: Protected defence | Protected | Same inbox: both blocked; real invoice paid and customer quote sent; scam report on the right |
 | C: Normal day | Protected | Nothing blocked: proves AgentWall doesn't get in the way |
-| D: Verify before paying | Protected | A genuine supplier's new bank account is held: approve or deny it |
+| D: Verify before paying | Protected | A genuine supplier's new bank account is held. The supplier's phone (simulated) receives a code; approve only by typing it |
 | E: Tamper-evident log | Protected | Press *Verify log*, then *Simulate tamper*, then *Verify* again |
 
 Click any tool call in the timeline to see its provenance: which sources flowed into it, and which untrusted messages the assistant had read.
@@ -75,8 +77,14 @@ Click any tool call in the timeline to see its provenance: which sources flowed 
 python -m agentwall.agent --scenario scenarios/a_attack_email.json --mode unprotected --llm-mode replay
 python -m agentwall.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 python scripts/verify_log.py          # verify the signed audit log
-python -m pytest -q                   # 107 tests
+python -m pytest -q                   # 127 tests
 python -m evals.run_eval              # benchmark -> evals/results.md
+python -m evals.model_matrix          # same scams against 6 real models -> evals/model_matrix.md
+```
+
+**Use it with your own assistant (MCP).** AgentWall also runs as an [MCP](https://modelcontextprotocol.io) server, so any MCP-capable assistant (Claude Code, Claude Desktop and others) can work Rudo's inbox through it. Every call goes through the same checks and signed audit log; a blocked call returns the reason as a tool error.
+```bash
+claude mcp add agentwall -- /path/to/agentwall/.venv/bin/python -m agentwall.mcp_server
 ```
 
 **Live mode (optional).** Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (free from Google AI Studio), or `LLM_PROVIDER=featherless` with `FEATHERLESS_API_KEY`. Then use `--llm-mode live`. In live mode the model also runs as a separate, tool-less judge on every incoming message.
@@ -102,25 +110,28 @@ flowchart LR
 - **Provenance tracking** (`agentwall/taint.py`): every value the assistant reads is labelled with its source, trust and sensitivity. Before a call runs, AgentWall checks whether labelled data flows into its arguments: whole lines, fragments (two or more distinctive values or phrases from the same source, so a partial payroll row counts) and paraphrases (most of a document's key terms). Text is normalised first, so URL-encoding and CSV punctuation can't hide it. This follows the idea behind Google DeepMind's [CaMeL](https://arxiv.org/abs/2503.18813): don't rely on the model resisting injection; control what data can flow where.
 - **Impersonation checks** (`agentwall/impersonation.py`): deterministic signals, no model needed.
 - **Policy** (`policies/default.yaml`, `agentwall/policy.py`): ordered rules with default-deny for external sends and payments. A misspelled condition makes the engine refuse to start instead of silently disabling a rule.
+- **Signed payment mandate** (`agentwall/mandate.py`): the owner's Ed25519 signature over approved suppliers and limits, the same idea as the signed mandates in Google's AP2 and Mastercard Agent Pay. Card networks check that an agent is *allowed* to spend; AgentWall also checks that the account came from the owner and not from an email.
+- **Out-of-band verification** (`agentwall/verification.py`): a held payment sends a one-time code to the supplier's phone on file; approval needs the code, three wrong tries deny it, and the code is masked in the audit log.
 - **Approvals, scam report, audit log** (`approvals.py`, `scam_report.py`, `audit.py`): every entry is SHA-256 hash-chained and Ed25519-signed; `scripts/verify_log.py` reports the first tampered entry.
+- **MCP server** (`agentwall/mcp_server.py`): the same gateway behind the Model Context Protocol.
 
 ## Evaluation
 
-`evals/` contains 27 scripted traces: the exact actions a *fully compromised* assistant would take (one that obeys every injected instruction). Each runs without and with AgentWall. This measures the firewall itself, not how cautious a particular model happens to be.
+`evals/` contains 30 scripted traces: the exact actions a *fully compromised* assistant would take (one that obeys every injected instruction). Each runs without and with AgentWall. This measures the firewall itself, not how cautious a particular model happens to be.
 
 | Metric | Without AgentWall | With AgentWall |
 |---|---|---|
-| Attack cases where the attack succeeded | 18/18 | 3/18 (all 3 are documented known misses) |
-| Attack actions blocked outright / held for a human | — | 13 / 2 |
+| Attack cases where the attack succeeded | 21/21 | 3/21 (all 3 are documented known misses) |
+| Attack actions blocked outright / held for a human | — | 16 / 2 |
 | Legitimate actions completed automatically | 24/24 | 23/24 |
 | Legitimate actions held for verification (by design) | 0 | 1 |
 | Legitimate actions wrongly blocked (false positives) | 0 | 0 |
-| Decisions matching the expected outcome | — | 42/42 |
-| Median added latency per tool call | — | 0.08 ms |
+| Decisions matching the expected outcome | — | 45/45 |
+| Median added latency per tool call | — | under 1 ms |
 
 **Why test a fully compromised assistant?** Whether a model falls for a scam varies by model and by day. On the same fake-CEO inbox, Gemini 3.8 Flash ignored the email on its own (recording in `scenarios/recordings/live/`), while Qwen 2.5 72B paid the scammer. A single successful attempt can cost thousands, so AgentWall has to hold even when the model is fooled, and the benchmark assumes it always is.
 
-Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing, lookalike supplier "new bank details", hidden-text injection, injected web pages, payroll smuggled into a URL (plain and percent-encoded), gift-card scams, duplicate and inflated invoices, reply-to harvesting, paraphrased strategy leaks, and single-row payroll leaks, and unknown senders asking for internal records by reply. Full per-case results: [evals/results.md](evals/results.md).
+Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing, lookalike supplier "new bank details", hidden-text injection, injected web pages, payroll smuggled into a URL (plain and percent-encoded), gift-card scams, duplicate and inflated invoices, reply-to harvesting, paraphrased strategy leaks, and single-row payroll leaks, unknown senders asking for internal records by reply, a supplier asking to be paid to an EcoCash merchant code, a fake EcoCash "sent by mistake" refund, and a scammer's account slipped into the supplier list without the owner's signature. Full per-case results: [evals/results.md](evals/results.md).
 
 ## What works and what doesn't
 
@@ -129,13 +140,17 @@ Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing
 - The Attack Lab with both assistants, including real emails from an Agentboxd inbox. In a live lab run, the real model paid the fake CEO $8,450 when unprotected; behind AgentWall it kept retrying (payment, then a "verification" email, then the payroll) and was blocked four times.
 - Blocking and holding for every stoppable case in the benchmark, with no false positives on the legitimate cases.
 - Live runs with real models: the demo recordings come from Qwen 2.5 72B, and a real-model run found a false positive the benchmark had missed (an emailed quote to a customer was blocked); it's fixed and now covered by a benchmark case.
-- Tamper detection on the audit log.
+- Tamper detection on the audit log, and on the supplier list through the signed mandate.
+- Code-confirmed approval of held payments through the supplier's number on file.
+- MCP mode with a real client: a headless Claude Code session (Claude Haiku) read Rudo's inbox through AgentWall over MCP, with every call in the signed audit log. Haiku refused the scam on its own, which is exactly why the protection must not depend on the model.
 
 **Doesn't, or only partly**
 - **Known misses** (in the benchmark on purpose): a fake invoice to a *registered* supplier under the auto-payment limit; salary details paraphrased in words to a trusted contact whose mailbox is compromised; and an injected instruction that only changes the wording of an internal draft.
 - **Paraphrase detection is heuristic.** Data re-expressed in different words ("twelve and a half thousand") is not recognised as the payroll. It is still blocked when the recipient is unknown or spoofed, but not when the recipient is trusted.
 - **Simulated world.** Email, files, web pages and payments are an in-memory mock, so nothing real is ever sent or paid. Connecting a real inbox (for example Agentboxd, a ForgeHacks sponsor) is the next step.
 - **Replays are recordings.** The offline demo replays real Qwen 2.5 72B runs; a fresh live run may differ because model behaviour varies. Live mode works with Featherless (used for the recordings) and Gemini (tested end to end; the free tier allows 5 requests per minute and a small daily quota, which AgentWall retries around). The isolated AI judge runs in live mode; replays use the heuristic judge only.
+- **The verification text is simulated.** The code is shown on screen as the supplier's phone; sending a real SMS needs a gateway (for example Africa's Talking or Twilio), which isn't wired in.
+- **The mandate key lives on the server in the demo.** In a real deployment the owner would sign on her own device and the server would hold only her public key; here the demo signs the scenario's supplier list at startup.
 - **The scenario dashboard is single-user:** runs share one state, so two visitors running scenarios at once will see each other's runs. The Attack Lab gives every run its own stream. No login; by default the server binds to 127.0.0.1.
 
 ## Security of AgentWall itself
