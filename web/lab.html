@@ -44,8 +44,31 @@
           <dt>Assistant may</dt><dd>read mail, reply, pay approved invoices</dd>
           <dt>Known payees</dt><dd>Harare Fuel &amp; Spares <span class="mono">ACC-55210</span><br>Apex Logistics Fleet <span class="mono">ACC-10042</span></dd>
         </dl>
+        <div class="mandate" id="mandateBox">
+          <span class="label">Signed payment mandate</span>
+          <p id="mandateLine" class="mono">checking signature…</p>
+          <p class="note">Rudo signed her supplier list and limits. AgentWall only pays accounts her signature covers.</p>
+        </div>
         <p class="note">Business email compromise cost about $3 billion in FBI-reported losses in 2025.</p>
       </aside>
+    </section>
+
+    <section id="scoreboard" class="scoreboard" aria-label="Live scoreboard" hidden>
+      <div class="sb-head">
+        <span class="label">Scoreboard, all visitors</span>
+        <span id="sbSince" class="hint"></span>
+      </div>
+      <dl class="sb-figs">
+        <div><dt>Scams tried</dt><dd id="sbScams">0</dd></div>
+        <div><dt>Stopped by AgentWall</dt><dd id="sbStopped" class="k-safe">0</dd></div>
+        <div><dt>Got through</dt><dd id="sbThrough">0</dd></div>
+        <div><dt>Money kept from scammers</dt><dd id="sbKept">$0</dd></div>
+      </dl>
+      <p id="sbSignals" class="sb-note"></p>
+      <details id="sbGapsWrap" class="sb-gaps" hidden>
+        <summary>Scams that got through, so we can fix them</summary>
+        <ul id="sbGaps"></ul>
+      </details>
     </section>
 
     <section id="realInbox" class="inbox" hidden>
@@ -80,6 +103,7 @@
           </div>
           <span id="brainHint" class="hint"></span>
         </div>
+        <label class="tamper" for="tamper"><input type="checkbox" id="tamper"> Also hack the supplier list: swap Harare Fuel's bank account for the scammer's</label>
         <button id="sendBtn" class="send" type="button">Send to both assistants</button>
       </div>
       <p id="formError" class="form-error" hidden></p>

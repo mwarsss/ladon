@@ -132,6 +132,7 @@ function onEvent(e) {
     $("sendBtn").textContent = "Send to both assistants";
     renderVerdict();
     loadStatus();
+    loadScoreboard();
   }
 }
 
@@ -172,7 +173,10 @@ function renderVerdict() {
   let tone, title, text;
   if (uLoss.length && !pLoss.length) {
     tone = "safe"; title = "AgentWall stopped your scam.";
-    text = `Without it: ${uLoss.join(" · ")}. With it: $0 lost, and the real work still got done.`;
+    const workDone = p.paid_total - p.paid_to_unverified > 0;
+    text = `Without it: ${uLoss.join(" · ")}. With it: $0 lost` + (workDone
+      ? ", and the real work still got done."
+      : ". A payment pointing at an account Rudo never approved was stopped; fix the supplier list, then pay it.");
   } else if (!uLoss.length && !pLoss.length) {
     tone = "calm"; title = brain === "live" ? "The AI didn't fall for it this time." : "Nothing harmful happened.";
     text = brain === "live"
@@ -212,6 +216,7 @@ async function send() {
     subject: $("subject").value,
     body: $("body").value,
     brain,
+    tamper_registry: $("tamper").checked,
   };
   const res = await fetch("/api/lab/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await res.json();
@@ -253,9 +258,42 @@ async function loadInbox() {
   list.querySelectorAll(".run-inbox").forEach(btn => btn.addEventListener("click", () => runInbox(btn.dataset.id)));
 }
 
+const SIGNAL_NAMES = {
+  lookalike_domain: "lookalike domain", display_name_spoof: "spoofed name", pressure_tactic: "pressure tactics",
+  reply_to_mismatch: "reply-to mismatch", payee_change: "changed bank details", hidden_instruction: "hidden instructions",
+};
+
+async function loadMandate() {
+  try {
+    const m = await (await fetch("/api/lab/mandate")).json();
+    const line = $("mandateLine");
+    line.textContent = `${m.id} · Ed25519 · ${m.payees.length} suppliers · valid to ${m.valid_until.slice(0, 10)}`;
+    line.title = `Signed by ${m.issuer}\nSignature ${m.signature.slice(0, 32)}…\n${m.status}`;
+    line.className = `mono ${m.verified ? "ok" : "bad"}`;
+  } catch (e) { $("mandateLine").textContent = "couldn't load the mandate"; }
+}
+
+async function loadScoreboard() {
+  let s;
+  try { s = await (await fetch("/api/lab/scoreboard")).json(); } catch (e) { return; }
+  $("scoreboard").hidden = false;
+  $("sbScams").textContent = s.scams.toLocaleString();
+  $("sbStopped").textContent = s.stopped.toLocaleString();
+  $("sbThrough").textContent = s.got_through.toLocaleString();
+  $("sbThrough").className = s.got_through ? "has-gaps" : "";
+  $("sbKept").textContent = "$" + Math.round(s.money_kept).toLocaleString("en-US");
+  $("sbSince").textContent = s.since ? `since ${s.since} · ${s.runs.toLocaleString()} emails sent` : "";
+  $("sbSignals").textContent = s.top_signals.length
+    ? "Most common tricks AgentWall caught: " + s.top_signals.map(([k, n]) => `${SIGNAL_NAMES[k] || k.replace(/_/g, " ")} (${n})`).join(", ")
+    : "No scams yet. Be the first to try.";
+  $("sbGapsWrap").hidden = !s.gaps.length;
+  $("sbGaps").innerHTML = s.gaps.map((g) =>
+    `<li>${esc(g.when)} UTC · ${esc(g.what)} · ${esc(g.assistant === "live" ? "real AI" : "fully fooled")}, ${esc(g.source)}</li>`).join("");
+}
+
 async function runInbox(id) {
   $("formError").hidden = true;
-  const res = await fetch(`/api/lab/run-inbox/${encodeURIComponent(id)}?brain=${brain}`, { method: "POST" });
+  const res = await fetch(`/api/lab/run-inbox/${encodeURIComponent(id)}?brain=${brain}&tamper=${$("tamper").checked}`, { method: "POST" });
   const data = await res.json();
   if (!res.ok) {
     $("formError").textContent = typeof data.detail === "string" ? data.detail : "Couldn't run that email.";
@@ -273,4 +311,6 @@ setBrain("fooled");
 loadPresets();
 loadStatus();
 loadInbox();
+loadScoreboard();
+loadMandate();
 setInterval(loadInbox, 10000);

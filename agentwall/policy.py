@@ -48,6 +48,7 @@ KNOWN_CONDITIONS = {
     "url_sends_payload_to_unknown_domain",
     "amount_exceeds_auto_limit",
     "is_duplicate_reference",
+    "target_not_in_signed_mandate",
 }
 
 
@@ -143,6 +144,7 @@ class PolicyEngine:
                     url=str(arguments.get("url", "")),
                     reference=str(arguments.get("reference", "")),
                     limit=f"{self._auto_limit(env, to_arg):,.2f}",
+                    mandate=self._mandate_text(env),
                 )
                 return PolicyDecision(
                     decision=rule.get("decision", "allow"),
@@ -251,6 +253,15 @@ class PolicyEngine:
                 return True
             return amount > self._auto_limit(env, str(arguments.get("to", "")))
 
+        elif cond == "target_not_in_signed_mandate":
+            mandate = env.mandate
+            if mandate is None or not mandate.verify()[0]:
+                return True
+            target = str(arguments.get("to", ""))
+            payee = env.get_payee(target)
+            # Resolve a supplier name to the account the money would really go to.
+            return mandate.payee_for(payee.account if payee else target) is None
+
         elif cond == "is_duplicate_reference":
             return env.is_duplicate_payment(str(arguments.get("reference", "")))
 
@@ -293,6 +304,13 @@ class PolicyEngine:
             return True
         spoofing = {"lookalike_domain", "display_name_spoof", "reply_to_mismatch"}
         return any(sig.signal_type in spoofing for sig in analyze_email_signals(email, env))
+
+    @staticmethod
+    def _mandate_text(env: Environment) -> str:
+        if env.mandate is None:
+            return "(none: no signed mandate)"
+        ok, reason = env.mandate.verify()
+        return env.mandate.id if ok else f"{env.mandate.id} (invalid: {reason})"
 
     def _auto_limit(self, env: Environment, target: str) -> float:
         payee = env.get_payee(target) if target else None

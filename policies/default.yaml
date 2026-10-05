@@ -49,6 +49,14 @@ rules:
     decision: block
     reason: "Recipient address {to} originated solely inside untrusted messages or imitates company domain."
 
+  # The supplier list is only trusted as far as the owner's signature covers it.
+  # An account added later (hacked supplier database, insider edit) is refused.
+  - id: block_payee_outside_signed_mandate
+    category: financial
+    condition: "target_in_payee_registry and target_not_in_signed_mandate"
+    decision: block
+    reason: "Blocked payment of ${amount} to {to}: the account is on the supplier list but not in Rudo's signed payment mandate {mandate}. Someone changed the list without her signature."
+
   # Duplicate or unusually large payments are held even for known suppliers.
   - id: hold_duplicate_payment
     category: financial
@@ -67,7 +75,7 @@ rules:
     category: financial
     condition: "target_in_payee_registry"
     decision: allow
-    reason: "Payment of ${amount} to verified supplier {to} authorized against registered payee account."
+    reason: "Payment of ${amount} to verified supplier {to}, authorised by Rudo's signed payment mandate {mandate}."
 
   # 6. Financial Fraud: Block unverified account when instructed by untrusted message
   - id: block_untrusted_payee_financial

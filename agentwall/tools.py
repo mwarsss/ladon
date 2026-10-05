@@ -115,10 +115,15 @@ def tool_make_payment(
     except (ValueError, TypeError):
         return {"error": f"Invalid payment amount: {amount}"}
 
-    record = env.add_payment(to=to, amount=amt, reference=reference)
+    # Paying a supplier by name uses the bank account on the supplier list, as an
+    # accounts-payable system would. That is exactly why the list itself must be trusted.
+    payee = env.get_payee(to)
+    account = payee.account if payee and payee.name.lower() == to.strip().lower() else to
+    record = env.add_payment(to=account, amount=amt, reference=reference)
     return {
         "status": "payment_executed",
         "to": record.to,
+        **({"payee": payee.name} if account != to else {}),
         "amount": record.amount,
         "reference": record.reference,
         "timestamp": record.timestamp,

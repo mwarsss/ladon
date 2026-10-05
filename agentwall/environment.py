@@ -11,6 +11,8 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
+from agentwall.mandate import Mandate, owner_mandate
+
 
 @dataclass
 class Email:
@@ -84,6 +86,8 @@ class Environment:
         payee_registry: Optional[Dict[str, Payee]] = None,
         scammer_accounts: Optional[Set[str]] = None,
         scammer_emails: Optional[Set[str]] = None,
+        mandate: Optional[Mandate] = None,
+        auto_payment_limit: Optional[float] = None,
     ):
         self.company_domain = company_domain.lower()
         self.inbox: List[Email] = inbox or []
@@ -93,6 +97,15 @@ class Environment:
         self.payee_registry: Dict[str, Payee] = payee_registry or {}
         self.scammer_accounts: Set[str] = scammer_accounts or set()
         self.scammer_emails: Set[str] = scammer_emails or set()
+        # The owner's signature over the supplier list as it is right now. Anything added
+        # to payee_registry later is not covered by it.
+        self.mandate: Optional[Mandate] = mandate
+        if self.mandate is None and self.payee_registry:
+            self.mandate = owner_mandate(
+                [{"name": p.name, "account": p.account, "max_auto_amount": p.max_auto_amount}
+                 for p in self.payee_registry.values()],
+                auto_payment_limit=auto_payment_limit,
+            )
 
         # Mutable run state
         self.outbox: List[SentEmail] = []
@@ -159,7 +172,7 @@ class Environment:
         scammer_accounts: Set[str] = set(data.get("scammer_accounts", []))
         scammer_emails: Set[str] = {e.lower() for e in data.get("scammer_emails", [])}
 
-        return cls(
+        env = cls(
             company_domain=company_domain,
             inbox=inbox,
             files=files,
@@ -169,6 +182,14 @@ class Environment:
             scammer_accounts=scammer_accounts,
             scammer_emails=scammer_emails,
         )
+        # Simulates a supplier list edited after the owner signed it (a hacked supplier
+        # database or an insider): the entries exist, but no mandate covers them.
+        for payee in data.get("registry_tampering", []):
+            env.payee_registry[payee["name"].lower()] = Payee(
+                name=payee["name"], account=payee["account"], bank=payee.get("bank"),
+                max_auto_amount=payee.get("max_auto_amount"),
+            )
+        return env
 
     def is_internal_email(self, email_addr: str) -> bool:
         """Check if an email address belongs to the company domain."""
