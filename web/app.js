@@ -96,7 +96,7 @@ function handleServerEvent(event) {
   switch (event.type) {
     case "run_started":
       outcomeBanner.classList.add("hidden");
-      approvalBanner.classList.add("hidden");
+      approvalBanner.classList.add("hidden"); document.getElementById("supplierPhone").classList.add("hidden");
       timelineContainer.innerHTML = "";
       runStats = { blocked: 0, held: 0, approved: 0, denied: 0 };
       lastScamReport = null;
@@ -125,6 +125,12 @@ function handleServerEvent(event) {
 
     case "judge_verdict":
       appendJudgeCard(event);
+      break;
+
+    case "verification_sent":
+      document.getElementById("phoneTo").textContent = `To ${event.to_name}, ${event.to_phone}`;
+      document.getElementById("phoneSms").textContent = event.message;
+      document.getElementById("supplierPhone").classList.remove("hidden");
       break;
 
     case "approval_needed":
@@ -259,13 +265,22 @@ function showApprovalBanner(event) {
   activeApprovalId = event.approval_id;
   approvalReason.textContent = event.reason;
   approvalDetails.textContent = `Action: ${event.tool_name} | Target: ${event.target || 'N/A'} | Amount: $${event.amount ? event.amount.toLocaleString() : 'N/A'}`;
+  const v = event.verification || {};
+  const codeInput = document.getElementById("verifyCode");
+  codeInput.value = "";
+  codeInput.classList.toggle("hidden", !v.contact);
+  document.getElementById("verifyError").classList.add("hidden");
+  document.getElementById("verifyInstructions").textContent = v.contact
+    ? `We texted a one-time code to ${v.contact} on ${v.phone}, the number in your records, not one from the email. Call them on that number. If they really asked for this change, they can read you the code.`
+    : "There is no contact on file for this account, so it can't be confirmed by phone. Deny it unless you can verify it in person.";
   approvalBanner.classList.remove("hidden");
 }
 
 approveBtn.addEventListener("click", async () => {
   if (!activeApprovalId) return;
-  runStats.approved += 1;
-  await resolveApproval(activeApprovalId, true, "Approved by administrator via dashboard");
+  if (await resolveApproval(activeApprovalId, true, null, document.getElementById("verifyCode").value)) {
+    runStats.approved += 1;
+  }
 });
 
 denyBtn.addEventListener("click", async () => {
@@ -274,16 +289,31 @@ denyBtn.addEventListener("click", async () => {
   await resolveApproval(activeApprovalId, false, "Denied by administrator: suspected fraud");
 });
 
-async function resolveApproval(approvalId, approved, note) {
+async function resolveApproval(approvalId, approved, note, code) {
+  const errorBox = document.getElementById("verifyError");
   try {
-    await fetch(`/api/approvals/${approvalId}/resolve`, {
+    const res = await fetch(`/api/approvals/${approvalId}/resolve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ approved, note }),
+      body: JSON.stringify({ approved, note, code: code || null }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      errorBox.textContent = data.detail || "Couldn't record that decision.";
+      errorBox.classList.remove("hidden");
+      if (res.status === 403 && /denied/.test(errorBox.textContent)) {
+        runStats.denied += 1;
+        approvalBanner.classList.add("hidden");
+      }
+      return false;
+    }
     approvalBanner.classList.add("hidden");
+    document.getElementById("supplierPhone").classList.add("hidden");
+    return true;
   } catch (err) {
-    console.error("Failed to resolve approval:", err);
+    errorBox.textContent = "Couldn't reach AgentWall. Try again.";
+    errorBox.classList.remove("hidden");
+    return false;
   }
 }
 
@@ -546,7 +576,7 @@ resetBtn.addEventListener("click", async () => {
   await fetch("/api/reset", { method: "POST" });
   timelineContainer.innerHTML = `<div class="p-8 text-center text-slate-500 text-xs italic">System reset. Ready to run.</div>`;
   outcomeBanner.classList.add("hidden");
-  approvalBanner.classList.add("hidden");
+  approvalBanner.classList.add("hidden"); document.getElementById("supplierPhone").classList.add("hidden");
   updateStats(0, 0, []);
   attackerOutboxList.innerHTML = `<p class="text-slate-500 italic text-center py-2">No emails exfiltrated to attacker.</p>`;
   scamReportContent.innerHTML = `<p class="text-slate-400 italic">No threats intercepted in current run.</p>`;

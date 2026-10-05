@@ -75,6 +75,7 @@ class Environment:
     """In-memory mock environment holding current world state."""
 
     DEFAULT_COMPANY_DOMAIN = "kopjelogistics.example"
+    company_name = "Kopje Logistics"
 
     def __init__(
         self,
@@ -189,6 +190,7 @@ class Environment:
                 name=payee["name"], account=payee["account"], bank=payee.get("bank"),
                 max_auto_amount=payee.get("max_auto_amount"),
             )
+        env.company_name = data.get("company_name", cls.company_name)
         return env
 
     def is_internal_email(self, email_addr: str) -> bool:

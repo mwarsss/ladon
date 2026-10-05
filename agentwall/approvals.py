@@ -29,6 +29,11 @@ class ApprovalItem:
     )
     resolved_at: Optional[str] = None
     reviewer_note: Optional[str] = None
+    # Out-of-band verification: who was sent a one-time code, from company records
+    verify_contact: Optional[str] = None
+    verify_phone: Optional[str] = None
+    code_attempts: int = 0
+    _code_hash: Optional[str] = field(default=None, repr=False)
 
     # Internal synchronization primitive
     _event: threading.Event = field(default_factory=threading.Event, repr=False)
@@ -37,8 +42,12 @@ class ApprovalItem:
         return {
             f.name: copy.deepcopy(getattr(self, f.name))
             for f in fields(self)
-            if f.name != "_event"
+            if not f.name.startswith("_")
         }
+
+
+class CodeRejected(Exception):
+    """The verification code was wrong (or too many wrong tries)."""
 
 
 class ApprovalQueue:
@@ -90,14 +99,37 @@ class ApprovalQueue:
         with self._lock:
             return [item.to_dict() for item in self._items.values()]
 
+    def require_code(self, item: ApprovalItem, contact_name: str, phone: str, code_hash: str) -> None:
+        """Approval of this item now needs the code sent to the contact on file."""
+        with self._lock:
+            item.verify_contact, item.verify_phone, item._code_hash = contact_name, phone, code_hash
+
     def resolve(
-        self, approval_id: str, approved: bool, note: Optional[str] = None
+        self, approval_id: str, approved: bool, note: Optional[str] = None, code: Optional[str] = None
     ) -> bool:
-        """Resolve a pending approval request (Approve or Deny)."""
+        """Resolve a pending approval request (Approve or Deny).
+
+        Approving an item that has a verification code needs that code. Three wrong
+        codes deny the payment, since someone is guessing.
+        """
+        from agentwall.verification import MAX_ATTEMPTS, code_matches
+
         with self._lock:
             item = self._items.get(approval_id)
             if not item or item.status != "pending":
                 return False
+            if approved and item._code_hash and not code_matches(code or "", item._code_hash):
+                item.code_attempts += 1
+                if item.code_attempts >= MAX_ATTEMPTS:
+                    item.status = "denied"
+                    item.resolved_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    item.reviewer_note = "Denied: three wrong verification codes."
+                    item._event.set()
+                    raise CodeRejected("Three wrong codes. The payment has been denied.")
+                left = MAX_ATTEMPTS - item.code_attempts
+                raise CodeRejected(f"That code doesn't match. {left} tr{'y' if left == 1 else 'ies'} left.")
+            if approved and item._code_hash:
+                note = note or f"Approved after {item.verify_contact} confirmed the code sent to {item.verify_phone}"
 
             item.status = "approved" if approved else "denied"
             item.resolved_at = datetime.datetime.now(datetime.timezone.utc).isoformat()

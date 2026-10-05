@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from agentwall.agent import make_judge, run_agent_loop
-from agentwall.approvals import ApprovalQueue
+from agentwall.approvals import ApprovalQueue, CodeRejected
 from agentwall.audit import AuditLogger
 from agentwall.environment import Environment
 from agentwall.gateway import Gateway
@@ -92,6 +92,7 @@ class RunRequest(BaseModel):
 class ResolveApprovalRequest(BaseModel):
     approved: bool
     note: Optional[str] = None
+    code: Optional[str] = None
 
 
 @app.get("/api/scenarios")
@@ -260,7 +261,10 @@ def start_run(req: RunRequest, background_tasks: BackgroundTasks):
 @app.post("/api/approvals/{approval_id}/resolve")
 def resolve_approval(approval_id: str, req: ResolveApprovalRequest):
     """Approve or Deny a held action."""
-    success = state.approval_queue.resolve(approval_id, req.approved, req.note)
+    try:
+        success = state.approval_queue.resolve(approval_id, req.approved, req.note, code=req.code)
+    except CodeRejected as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     if not success:
         raise HTTPException(status_code=404, detail="Pending approval not found or already resolved.")
 

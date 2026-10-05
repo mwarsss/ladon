@@ -11,6 +11,7 @@ impersonation heuristics, isolated prompt injection judge, and human-in-the-loop
 from __future__ import annotations
 
 import datetime
+import json
 from urllib.parse import unquote_plus
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -24,6 +25,7 @@ from agentwall.policy import PolicyDecision, PolicyEngine
 from agentwall.scam_report import ScamReport, generate_scam_report
 from agentwall.taint import TaintTracker
 from agentwall.tools import execute_tool, get_tool_category, get_tool_metadata
+from agentwall.verification import code_hash, new_code, sms_text, verified_contact
 
 
 @dataclass
@@ -68,8 +70,11 @@ class Gateway:
         """Register an event listener (for SSE server, UI, or audit logs)."""
         self.event_listeners.append(listener)
 
-    def emit_event(self, event_type: str, data: Dict[str, Any]) -> None:
-        """Broadcast an event to all registered listeners and audit logger."""
+    def emit_event(self, event_type: str, data: Dict[str, Any], secret: Optional[str] = None) -> None:
+        """Broadcast an event to all registered listeners and audit logger.
+
+        `secret` (a verification code) reaches the live listeners but is masked in the audit log.
+        """
         payload = {
             "type": event_type,
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -83,7 +88,10 @@ class Gateway:
 
         if self.audit_logger:
             try:
-                self.audit_logger.log_event(event_type, payload)
+                logged = payload
+                if secret:
+                    logged = json.loads(json.dumps(payload, default=str).replace(secret, "••••••"))
+                self.audit_logger.log_event(event_type, logged)
             except Exception:
                 pass
 
@@ -170,6 +178,18 @@ class Gateway:
                     arguments=arguments,
                     reason=decision_reason,
                 )
+                contact = verified_contact(self.env, self.taint_tracker, arguments)
+                verification: Dict[str, Any] = {"contact": None}
+                if contact is not None:
+                    code = new_code()
+                    self.approval_queue.require_code(appr_item, contact.name, contact.phone, code_hash(code))
+                    verification = {"contact": contact.name, "phone": contact.phone}
+                    company = self.env.company_name
+                    # The supplier's phone (simulated). Only the hash is kept by the approval queue.
+                    self.emit_event("verification_sent", {
+                        "approval_id": appr_item.id, "channel": "sms (simulated)", "to_name": contact.name,
+                        "to_phone": contact.phone, "message": sms_text(company, contact, arguments, code),
+                    }, secret=code)
                 self.emit_event(
                     "approval_needed",
                     {
@@ -179,10 +199,11 @@ class Gateway:
                         "reason": decision_reason,
                         "amount": appr_item.amount,
                         "target": appr_item.target,
+                        "verification": verification,
                     },
                 )
-                # Block waiting for human administrator decision
-                approved = self.approval_queue.wait_for_resolution(appr_item, timeout=20.0)
+                # Block waiting for human administrator decision (time to make the call)
+                approved = self.approval_queue.wait_for_resolution(appr_item, timeout=120.0)
                 if approved:
                     tool_output = execute_tool(self.env, tool_name, arguments)
                     decision = GatewayDecision(
