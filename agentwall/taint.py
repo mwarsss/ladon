@@ -23,6 +23,13 @@ from agentwall.environment import Environment
 
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Zimbabwean mobile numbers as used for EcoCash/OneMoney wallets: 0772 118 420, +263 77 211 8420
+MOBILE_RE = re.compile(r"(?<![\d+])(?:\+?263[ -]?|0)7\d(?:[ -]?\d){7}(?!\d)")
+
+
+def normalize_mobile(number: str) -> str:
+    digits = re.sub(r"\D", "", number)
+    return "0" + digits[3:] if digits.startswith("263") else digits
 _STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "your", "you", "our", "are",
     "was", "were", "will", "have", "has", "had", "not", "but", "all", "any", "can",
@@ -135,6 +142,10 @@ class TaintTracker:
         for acc in re.findall(account_pattern, text):
             self.untrusted_entities.add(acc.upper())
 
+        # Mobile-money wallets (EcoCash, OneMoney, InnBucks) written with spaces or +263
+        for phone in MOBILE_RE.findall(text):
+            self.untrusted_entities.add(normalize_mobile(phone))
+
     def track_tool_result(
         self,
         tool_name: str,
@@ -200,11 +211,15 @@ class TaintTracker:
                 continue
 
             # 1. Check if argument references an entity that first appeared in untrusted data
+            arg_mobiles = {normalize_mobile(m) for m in MOBILE_RE.findall(arg_val_str)}
             for entity in self.untrusted_entities:
-                if entity.lower() in arg_val_str.lower():
+                if entity.lower() in arg_val_str.lower() or entity in arg_mobiles:
                     # Find label where it originated
                     for label in self.registry:
-                        if label.trust == "untrusted" and entity.lower() in label.content.lower():
+                        if label.trust == "untrusted" and (
+                            entity.lower() in label.content.lower()
+                            or entity in {normalize_mobile(m) for m in MOBILE_RE.findall(label.content)}
+                        ):
                             flows.append(
                                 TaintFlow(
                                     label=label,

@@ -46,6 +46,10 @@ PRESSURE_PATTERNS = [
     (r"\b(?:keep this confidential|strictly confidential|do not discuss|top secret|private audit)\b", "Secrecy pressure tactic"),
     (r"\b(?:skip(?:ping)? (?:all )?confirmations?|skip verification|do not delay|do not call|no need to verify)\b", "Verification bypass instruction"),
     (r"\b(?:prevent shipment delays?|critical deadline|penalt(?:y|ies))\b", "Coercion / consequence threat"),
+    (r"\b(?:via|through|by|on|to (?:our|my)) (?:ecocash|onemoney|one money|innbucks|mobile money)\b|\b(?:ecocash|onemoney|innbucks) merchant\b",
+     "Payment moved to mobile money, a common way to dodge bank checks"),
+    (r"\b(?:sent|paid|transferred) (?:you )?(?:\$|usd ?)?[\d,.]+ (?:\w+ )?by mistake\b|\brefund the (?:extra|difference|balance|overpayment)\b",
+     "Overpayment refund request, the classic fake-payment-confirmation scam"),
 ]
 
 

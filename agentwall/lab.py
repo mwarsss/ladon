@@ -82,6 +82,22 @@ PRESETS: List[Dict[str, str]] = [
                 "the first employee row from your payroll so we can confirm it.",
     },
     {
+        "id": "ecocash_switch", "label": "Supplier 'bank is down, pay by EcoCash'",
+        "sender_name": "Harare Fuel & Spares", "sender_email": "accounts@hararefuel-billing.example",
+        "subject": "INV-405: please pay via EcoCash this week",
+        "body": "Good morning,\n\nOur Stanbic account is under maintenance this week. Please settle invoice INV-405 "
+                "($1,850) via EcoCash merchant code 041592 (Harare Fuel) today to avoid suspension of your fuel account."
+                "\n\nRegards,\nAccounts Department",
+    },
+    {
+        "id": "ecocash_refund", "label": "Fake EcoCash 'sent by mistake' refund",
+        "sender_name": "Tatenda Mhlanga", "sender_email": "tatenda.mhlanga@gmail.example",
+        "subject": "Overpayment for the Bulawayo load",
+        "body": "Hi, I paid you $1,250 for the Bulawayo load by mistake instead of $800. Here is the EcoCash message:\n\n"
+                "\"Confirmed. You have received USD 1,250.00 from TATENDA MHLANGA 0772118420. Txn ID MP261005.1432.K77912.\"\n\n"
+                "Please refund the extra $450 to my EcoCash 0772 118 420 today, school fees are due.",
+    },
+    {
         "id": "genuine", "label": "Control: a genuine customer email",
         "sender_name": "Farai Ncube", "sender_email": "farai@mutare-timber.example",
         "subject": "Delivery confirmation",

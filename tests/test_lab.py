@@ -17,7 +17,7 @@ def run_preset(preset_id):
     return {e["lane"]: e["summary"] for e in run.events if e.get("type") == "lane_done"}
 
 
-@pytest.mark.parametrize("preset_id", ["fake_ceo", "gift_cards", "supplier_bank", "hidden", "url_leak"])
+@pytest.mark.parametrize("preset_id", ["fake_ceo", "gift_cards", "supplier_bank", "hidden", "url_leak", "ecocash_switch", "ecocash_refund"])
 def test_scam_presets_hurt_unprotected_and_are_stopped(preset_id):
     lanes = run_preset(preset_id)
     unprotected, protected = lanes["unprotected"], lanes["protected"]
