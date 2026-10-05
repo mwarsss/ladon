@@ -47,11 +47,11 @@ let activeApprovalId = null;
 function setMode(mode) {
   currentMode = mode;
   if (mode === "unprotected") {
-    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded bg-rose-600 text-onfill";
-    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded text-slate-400 hover:text-slate-200";
+    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded-full bg-rose-600 text-onfill";
+    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-200";
   } else {
-    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded bg-emerald-600 text-onfill";
-    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded text-slate-400 hover:text-slate-200";
+    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 text-onfill";
+    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-200";
   }
 }
 

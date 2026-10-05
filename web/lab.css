@@ -64,13 +64,13 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .inbox-row .subj { font-weight: 600; color: var(--fg-strong); overflow-wrap: anywhere; }
 .inbox-row .meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .inbox-empty { padding: 12px 16px; color: var(--muted); font-size: 13px; margin: 0; }
-.tag { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 0 6px; margin-left: 4px; border: 1px solid var(--rule-strong); color: var(--accent); }
+.tag { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 0 7px; margin-left: 4px; border-radius: 999px; border: 1px solid var(--rule-strong); color: var(--accent); }
 
 /* Compose */
 .compose { background: var(--surface); border: 1px solid var(--rule-strong); }
 .compose-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--rule); }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.preset { background: none; border: 1px solid var(--rule-strong); padding: 4px 10px; font-size: 13px; color: var(--fg); }
+.preset { background: none; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--fg); }
 .preset:hover { border-color: var(--fg); }
 .preset[aria-pressed="true"] { background: var(--fg-strong); color: var(--bg); border-color: var(--fg-strong); }
 .field { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); align-items: center; border-bottom: 1px solid var(--rule); }
@@ -83,12 +83,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .compose :is(input, textarea):focus-visible { outline: none; background: oklch(var(--ink-500) / 0.06); }
 .compose-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--rule); }
 .brains { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.segmented { display: inline-flex; border: 1px solid var(--rule-strong); }
-.segmented button { background: none; border: 0; padding: 6px 12px; font-size: 13px; color: var(--muted); }
-.segmented button + button { border-left: 1px solid var(--rule-strong); }
+.segmented { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--rule-strong); border-radius: 999px; }
+.segmented button { background: none; border: 0; border-radius: 999px; padding: 5px 14px; font-size: 13px; color: var(--muted); }
 .segmented button[aria-pressed="true"] { background: var(--fg-strong); color: var(--bg); font-weight: 600; }
 .hint { font-size: 12px; color: var(--muted); }
-.send { background: var(--accent-fill); color: #fff; border: 0; padding: 10px 20px; font-weight: 700; font-size: 15px; }
+.send { background: var(--accent-fill); color: #fff; border: 0; border-radius: 999px; padding: 10px 22px; font-weight: 700; font-size: 15px; }
 .send:hover:not(:disabled) { filter: brightness(1.12); }
 .form-error { margin: 0; padding: 10px 16px; color: var(--loss); border-top: 1px solid var(--rule); font-size: 14px; }
 
@@ -114,7 +113,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .lane-sub { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
 .signals { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
 .signals:empty { display: none; }
-.signal { font-family: var(--font-mono); font-size: 11px; padding: 2px 7px; border: 1px solid var(--hold); color: var(--hold); background: var(--hold-tint); cursor: help; }
+.signal { font-family: var(--font-mono); font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--hold); color: var(--hold); background: var(--hold-tint); cursor: help; }
 .signal.screen { border-color: var(--accent); color: var(--accent); background: transparent; cursor: default; }
 .entries { list-style: none; margin: 0; padding: 0; max-height: 46rem; overflow-y: auto; counter-reset: entry; flex: 1; }
 .entries:empty::before { content: "No actions yet. Send an email to start."; display: block; padding: 18px 0; color: var(--muted); font-size: 14px; }
