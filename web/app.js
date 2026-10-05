@@ -460,15 +460,24 @@ async function fetchStatus() {
     const res = await fetch("/api/status");
     const data = await res.json();
     if (data.outbox && data.outbox.length > 0) {
-      attackerOutboxList.innerHTML = data.outbox.map(email => `
-        <div class="bg-rose-950/20 border border-rose-500/30 p-2.5 rounded-lg space-y-1">
-          <p class="font-mono text-rose-300 font-bold">To: ${esc(email.to)}</p>
+      // Red only for emails that leaked company data or went to the scammer; normal replies stay neutral.
+      attackerOutboxList.innerHTML = data.outbox.map(email => {
+        const bad = (email.leaked_files && email.leaked_files.length) || email.to_scammer;
+        const why = [];
+        if (email.leaked_files && email.leaked_files.length) why.push(`leaked ${email.leaked_files.join(", ")}`);
+        if (email.to_scammer) why.push("sent to the scammer");
+        return `
+        <div class="${bad ? "bg-rose-950/20 border-rose-500/30" : "bg-slate-950 border-slate-800"} border p-2.5 rounded-lg space-y-1">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="font-mono font-bold ${bad ? "text-rose-300" : "text-slate-200"}">To: ${esc(email.to)}</p>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border ${bad ? "border-rose-500/40 text-rose-300" : "border-slate-700 text-slate-400"}">${bad ? esc(why.join(" · ")) : "normal reply"}</span>
+          </div>
           <p class="font-semibold text-slate-200">Subject: ${esc(email.subject)}</p>
           <pre class="text-[10px] text-slate-400 font-mono whitespace-pre-wrap">${esc(email.body.substring(0, 150))}...</pre>
-        </div>
-      `).join("");
+        </div>`;
+      }).join("");
     } else {
-      attackerOutboxList.innerHTML = `<p class="text-slate-500 italic text-center py-2">No emails exfiltrated to attacker.</p>`;
+      attackerOutboxList.innerHTML = `<p class="text-slate-500 italic text-center py-2">No emails sent.</p>`;
     }
   } catch (err) {
     console.error("Failed to fetch status:", err);
@@ -578,7 +587,7 @@ resetBtn.addEventListener("click", async () => {
   outcomeBanner.classList.add("hidden");
   approvalBanner.classList.add("hidden"); document.getElementById("supplierPhone").classList.add("hidden");
   updateStats(0, 0, []);
-  attackerOutboxList.innerHTML = `<p class="text-slate-500 italic text-center py-2">No emails exfiltrated to attacker.</p>`;
+  attackerOutboxList.innerHTML = `<p class="text-slate-500 italic text-center py-2">No emails sent.</p>`;
   scamReportContent.innerHTML = `<p class="text-slate-400 italic">No threats intercepted in current run.</p>`;
   provenanceList.innerHTML = `<p class="text-slate-500 italic">Click any tool call in the timeline to inspect its provenance.</p>`;
   auditLogContainer.innerHTML = `<p class="text-slate-500 italic text-center py-4">No audit entries recorded yet.</p>`;

@@ -154,7 +154,9 @@ def get_status():
 
         if env:
             outbox_items = [
-                {"to": e.to, "subject": e.subject, "body": e.body, "timestamp": e.timestamp}
+                {"to": e.to, "subject": e.subject, "body": e.body, "timestamp": e.timestamp,
+                 "leaked_files": env.files_leaked_by(e),
+                 "to_scammer": e.to.strip().lower() in env.scammer_emails}
                 for e in env.outbox
             ]
             payments_items = [
