@@ -42,9 +42,25 @@
     (Qwen paid the scammer unprotected; Gemini ignored the scam). A real run exposed a customer-reply false
     positive, now fixed and covered by benchmark case B09.
 
+- [x] **Attack Lab and real inbox (Oct 5)**
+  - `/lab`: visitors write a scam; two assistants (unprotected / AgentWall) run it side by side, fully
+    fooled offline or a real model. Real Agentboxd inbox: email a scam from your phone and run it.
+  - UI redesign: ledger-style lab, shared light/dark theme, no emoji, pill buttons.
+
+- [x] **Stand-out features (Oct 5–6)**
+  - EcoCash scams: mobile-money wallets as payment destinations; "pay by EcoCash" and fake
+    "sent by mistake" refund presets; benchmark cases A16, A17.
+  - Public scoreboard in the lab (counts only, no email text).
+  - Signed payment mandate (Ed25519): payments only to accounts the owner signed; catches a hacked
+    supplier list (lab option + case A18).
+  - Out-of-band verification: held payments need a code sent to the supplier's number on file.
+  - MCP server mode (`python -m agentwall.mcp_server`), tested with a real Claude Code client.
+  - `evals/model_matrix.py`: the lab's scams against 6 real models, with and without AgentWall.
+  - 127 tests.
+
 - [ ] **Before submitting**
-  - Record the demo video, make the repo public, submit on Devpost by Oct 10, 12:00 PM ET.
-  - Optional: Agentboxd real-inbox integration.
+  - Deploy the lab to a public link; record the demo video; make the repo public; submit on Devpost
+    by Oct 10, 12:00 PM ET.
 
 ---
 
