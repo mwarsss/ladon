@@ -99,7 +99,10 @@ def generate_scam_report(
 
     for d in blocked:
         if d.tool_name == "make_payment":
-            amt = float(d.arguments.get("amount", 0.0))
+            try:
+                amt = float(d.arguments.get("amount", 0.0))
+            except (TypeError, ValueError):
+                amt = 0.0  # the model sent something that isn't an amount
             to_acc = str(d.arguments.get("to", ""))
             prevented_cash += amt
             if to_acc and to_acc not in blocked_accounts:

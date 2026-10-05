@@ -30,6 +30,7 @@ from agentwall.environment import Environment
 from agentwall.fooled import ACCOUNT_RE, WALLET_RE, FooledAssistant
 from agentwall.gateway import Gateway
 from agentwall.judge import InjectionJudge
+from agentwall.tools import get_tool_category
 from agentwall.llm import BaseLLMProvider, ChatMessage, LLMResponse, create_llm_provider
 from agentwall.scoreboard import Scoreboard
 
@@ -247,6 +248,10 @@ def _lane_summary(env: Environment, gateway: Gateway) -> Dict[str, Any]:
         "blocked": sum(1 for d in gateway.call_history if d.decision == "block"),
         "held": sum(1 for d in gateway.call_history if d.decision == "require_approval"),
         "drafts": len(env.drafts),
+        # Broken calls from the model (no tool name, or a payment with no payee or amount)
+        "malformed": sum(1 for d in gateway.call_history if d.decision != "allow" and (
+            get_tool_category(str(d.tool_name)) == "unknown"
+            or (d.tool_name == "make_payment" and "Payment refused: the assistant asked to pay without" in d.reason))),
     }
 
 

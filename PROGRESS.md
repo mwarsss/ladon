@@ -56,7 +56,7 @@
   - Out-of-band verification: held payments need a code sent to the supplier's number on file.
   - MCP server mode (`python -m agentwall.mcp_server`), tested with a real Claude Code client.
   - `evals/model_matrix.py`: the lab's scams against 6 real models, with and without AgentWall.
-  - 127 tests.
+  - 128 tests.
 
 - [ ] **Before submitting**
   - Deploy the lab to a public link; record the demo video; make the repo public; submit on Devpost

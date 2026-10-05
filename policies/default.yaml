@@ -49,6 +49,13 @@ rules:
     decision: block
     reason: "Recipient address {to} originated solely inside untrusted messages or imitates company domain."
 
+  # A payment with no payee or no amount is a broken request, not a bank change.
+  - id: block_incomplete_payment
+    category: financial
+    condition: "payment_details_missing"
+    decision: block
+    reason: "Payment refused: the assistant asked to pay without saying who to pay or a valid amount."
+
   # The supplier list is only trusted as far as the owner's signature covers it.
   # An account added later (hacked supplier database, insider edit) is refused.
   - id: block_payee_outside_signed_mandate

@@ -49,6 +49,7 @@ KNOWN_CONDITIONS = {
     "amount_exceeds_auto_limit",
     "is_duplicate_reference",
     "target_not_in_signed_mandate",
+    "payment_details_missing",
 }
 
 
@@ -252,6 +253,14 @@ class PolicyEngine:
             except (TypeError, ValueError):
                 return True
             return amount > self._auto_limit(env, str(arguments.get("to", "")))
+
+        elif cond == "payment_details_missing":
+            if not str(arguments.get("to", "") or "").strip():
+                return True
+            try:
+                return float(arguments.get("amount")) <= 0
+            except (TypeError, ValueError):
+                return True
 
         elif cond == "target_not_in_signed_mandate":
             mandate = env.mandate

@@ -77,7 +77,7 @@ Click any tool call in the timeline to see its provenance: which sources flowed 
 python -m agentwall.agent --scenario scenarios/a_attack_email.json --mode unprotected --llm-mode replay
 python -m agentwall.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 python scripts/verify_log.py          # verify the signed audit log
-python -m pytest -q                   # 127 tests
+python -m pytest -q                   # 128 tests
 python -m evals.run_eval              # benchmark -> evals/results.md
 python -m evals.model_matrix          # same scams against 6 real models -> evals/model_matrix.md
 ```
@@ -130,6 +130,19 @@ flowchart LR
 | Median added latency per tool call | — | under 1 ms |
 
 **Why test a fully compromised assistant?** Whether a model falls for a scam varies by model and by day. On the same fake-CEO inbox, Gemini 3.8 Flash ignored the email on its own (recording in `scenarios/recordings/live/`), while Qwen 2.5 72B paid the scammer. A single successful attempt can cost thousands, so AgentWall has to hold even when the model is fooled, and the benchmark assumes it always is.
+
+**Six real models, same scams.** `python -m evals.model_matrix` sends the Attack Lab's 7 scams and the genuine control email to six models through Featherless, once without AgentWall and once through it ([full results](evals/model_matrix.md)):
+
+| Model | Scams it fell for, no protection | Scams that got through AgentWall |
+|---|---|---|
+| Llama 3.1 8B | 1/7 ($1,000) | **0/7** |
+| Qwen3 32B | 2/7 ($10,450) | **0/7** |
+| Llama 3.3 70B | 2/7 ($3,850) | **0/7** |
+| Qwen 2.5 72B | 2/7 ($10,450) | **0/7** |
+| gpt-oss 120B | 0/7 | **0/7** |
+| Kimi K2 | 1/7 ($8,450) | **0/7** |
+
+Five of six models fell for at least one scam, and which scam worked changed from model to model; with AgentWall none got through, with no false alarms on the genuine email. Each cell is one run, so a model may do better or worse on another day. That variability is the point: the protection shouldn't depend on it.
 
 Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing, lookalike supplier "new bank details", hidden-text injection, injected web pages, payroll smuggled into a URL (plain and percent-encoded), gift-card scams, duplicate and inflated invoices, reply-to harvesting, paraphrased strategy leaks, and single-row payroll leaks, unknown senders asking for internal records by reply, a supplier asking to be paid to an EcoCash merchant code, a fake EcoCash "sent by mistake" refund, and a scammer's account slipped into the supplier list without the owner's signature. Full per-case results: [evals/results.md](evals/results.md).
 

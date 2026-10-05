@@ -133,3 +133,15 @@ def test_new_account_from_known_supplier_is_held_not_blocked():
         gw.execute("read_email", {"id": email.id})
     d = gw.execute("make_payment", {"to": "ACC-88301", "amount": 4500.0, "reference": "INV-7721"})
     assert d.decision == "require_approval"
+
+
+def test_payment_without_payee_or_amount_is_refused_not_held():
+    from agentwall.environment import Environment
+    from agentwall.gateway import Gateway
+    from evals.cases import CASES, scenario_for
+
+    env = Environment.from_scenario(scenario_for(next(c for c in CASES if c["id"] == "B01")))
+    gw = Gateway(env, mode="protected")
+    for args in ({}, {"to": "ACC-55210"}, {"to": "ACC-55210", "amount": "lots"}):
+        d = gw.execute("make_payment", args)
+        assert d.decision == "block" and "without saying who to pay" in d.reason
