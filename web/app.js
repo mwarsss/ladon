@@ -47,11 +47,11 @@ let activeApprovalId = null;
 function setMode(mode) {
   currentMode = mode;
   if (mode === "unprotected") {
-    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded transition-all bg-rose-600 text-white shadow-md shadow-rose-600/30";
-    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded transition-all text-slate-400 hover:text-slate-200";
+    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded bg-rose-600 text-onfill";
+    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded text-slate-400 hover:text-slate-200";
   } else {
-    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded transition-all bg-emerald-600 text-white shadow-md shadow-emerald-600/30";
-    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded transition-all text-slate-400 hover:text-slate-200";
+    modeProtectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded bg-emerald-600 text-onfill";
+    modeUnprotectedBtn.className = "text-xs font-semibold px-3 py-1.5 rounded text-slate-400 hover:text-slate-200";
   }
 }
 
@@ -151,7 +151,7 @@ function handleServerEvent(event) {
 // Timeline Rendering
 function appendTimelineCard(type, text) {
   const div = document.createElement("div");
-  div.className = "bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs";
+  div.className = "bg-slate-950/80 border border-slate-800 rounded p-3 text-xs";
   if (type === "system") {
     div.innerHTML = `<span class="text-cyan-400 font-mono font-bold">[SYSTEM]</span> <span class="text-slate-300">${esc(text)}</span>`;
   } else if (type === "error") {
@@ -165,7 +165,7 @@ function appendToolCallCard(event) {
   const cardId = `tc_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
   const div = document.createElement("div");
   div.id = cardId;
-  div.className = "bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-2.5 transition-all";
+  div.className = "bg-slate-950 border border-slate-800 rounded p-3.5 space-y-2.5";
 
   const categoryColor = {
     read_private: "text-blue-400 border-blue-500/20 bg-blue-500/10",
@@ -181,7 +181,7 @@ function appendToolCallCard(event) {
         <span class="font-mono font-bold text-xs text-white">${esc(event.tool_name)}()</span>
         <span class="text-[10px] font-mono px-2 py-0.5 rounded border ${categoryColor}">${esc(event.category)}</span>
       </div>
-      <span class="status-badge text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400 animate-pulse">
+      <span class="status-badge text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400">
         EVALUATING...
       </span>
     </div>
@@ -211,16 +211,16 @@ function updateToolDecisionCard(event) {
 
   if (event.decision === "allow") {
     badge.className = "status-badge text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-    badge.innerHTML = "✓ [ALLOWED]";
+    badge.textContent = "allowed";
     reasonDiv.innerHTML = `<span class="text-emerald-400 font-semibold">Firewall Allowed:</span> <span class="text-slate-300">${esc(event.reason)}</span>`;
   } else if (event.decision === "block") {
     badge.className = "status-badge text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30";
-    badge.innerHTML = "🚫 [BLOCKED]";
+    badge.textContent = "blocked";
     reasonDiv.innerHTML = `<span class="text-rose-400 font-semibold">Security Policy Block:</span> <span class="text-rose-200">${esc(event.reason)}</span>`;
     lastCard.classList.add("border-rose-500/40");
   } else if (event.decision === "require_approval") {
     badge.className = "status-badge text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30";
-    badge.innerHTML = "⚠️ [VERIFICATION REQUIRED]";
+    badge.textContent = "held for a human";
     reasonDiv.innerHTML = `<span class="text-amber-400 font-semibold">Held for Human Approval:</span> <span class="text-amber-200">${esc(event.reason)}</span>`;
     lastCard.classList.add("border-amber-500/40");
   }
@@ -233,7 +233,6 @@ function appendSignalCard(event) {
   const div = document.createElement("div");
   div.className = "bg-amber-950/30 border border-amber-500/30 rounded-lg p-2.5 text-xs flex items-start gap-2";
   div.innerHTML = `
-    <span class="text-amber-400 font-bold">⚠️</span>
     <div>
       <p class="font-bold text-amber-300 uppercase font-mono text-[10px]">Signal: ${esc(String(event.signal_type).replace(/_/g, ' '))}</p>
       <p class="text-amber-100/90 text-[11px]">${esc(event.evidence)}</p>
@@ -247,9 +246,8 @@ function appendJudgeCard(event) {
   const div = document.createElement("div");
   div.className = "bg-purple-950/40 border border-purple-500/40 rounded-lg p-2.5 text-xs flex items-start gap-2";
   div.innerHTML = `
-    <span class="text-purple-400 font-bold">🔍</span>
     <div>
-      <p class="font-bold text-purple-300 uppercase font-mono text-[10px]">Isolated Judge: Prompt Injection Detected (Confidence: ${Math.round(event.confidence * 100)}%)</p>
+      <p class="font-bold text-purple-300 uppercase font-mono text-[10px]">Isolated judge: hidden instruction found (confidence ${Math.round(event.confidence * 100)}%)</p>
       <p class="text-purple-100/90 text-[11px]">${esc(event.explanation)}</p>
     </div>
   `;
@@ -299,9 +297,9 @@ function finishRun(result) {
   const lost = result.money_lost > 0 || result.leaked_files.length > 0;
   const stopped = runStats.blocked + runStats.held;
   const money = `$${Number(result.money_lost).toLocaleString()}`;
-  let tone, icon, kicker, title, body;
+  let tone, kicker, title, body;
   if (lost) {
-    tone = "rose"; icon = "🚨"; kicker = "Fraud succeeded";
+    tone = "rose"; kicker = "Fraud succeeded";
     const parts = [];
     if (result.money_lost > 0) parts.push(`${money} paid to scammer accounts`);
     if (result.leaked_files.length) parts.push(`leaked: ${result.leaked_files.join(", ")}`);
@@ -310,7 +308,7 @@ function finishRun(result) {
       ? "Without AgentWall the assistant followed the scammer's instructions. Run the same inbox in Protected mode to compare."
       : "AgentWall did not stop this run. See the timeline for the actions that got through.";
   } else if (stopped > 0) {
-    tone = "emerald"; icon = "🛡️"; kicker = runStats.blocked ? "Scam stopped" : "Verified before paying";
+    tone = "emerald"; kicker = runStats.blocked ? "Scam stopped" : "Verified before paying";
     const parts = [];
     if (runStats.blocked) parts.push(`${runStats.blocked} action${runStats.blocked > 1 ? "s" : ""} blocked`);
     if (runStats.held) {
@@ -322,26 +320,25 @@ function finishRun(result) {
       ? "Legitimate work completed. The scam report on the right explains each red flag and what to do next."
       : "A bank-detail change was paused until a human confirmed it through a trusted channel, the step that stops most invoice fraud.";
   } else {
-    tone = "sky"; icon = "✅"; kicker = "All clear";
+    tone = "sky"; kicker = "All clear";
     title = "No threats found · all work completed";
     body = "AgentWall allowed every action in this run: nothing in this inbox tried to move money or data where it shouldn't go.";
   }
-  outcomeBanner.className = `bg-gradient-to-r from-${tone}-950/90 via-${tone}-900/80 to-slate-900 border-2 border-${tone}-500 rounded-2xl p-6 shadow-2xl flex items-start gap-4`;
+  outcomeBanner.className = `bg-${tone}-500/10 border border-${tone}-500 p-5`;
   outcomeBanner.innerHTML = `
-    <div class="h-12 w-12 rounded-xl bg-${tone}-500/20 text-${tone}-400 border border-${tone}-500/40 flex items-center justify-center text-2xl flex-shrink-0">${icon}</div>
     <div class="space-y-1">
       <div class="flex items-center gap-2">
         <span class="text-xs font-mono font-bold uppercase tracking-wider text-${tone}-400">${esc(kicker)}</span>
-        <span class="text-xs bg-${tone}-500/20 text-${tone}-300 px-2 py-0.5 rounded font-mono">${currentMode === "protected" ? "AGENTWALL PROTECTED" : "UNPROTECTED MODE"}</span>
+        <span class="text-xs text-slate-400 font-mono">${currentMode === "protected" ? "protected by AgentWall" : "no protection"}</span>
       </div>
-      <h2 class="text-lg font-black text-white">${esc(title)}</h2>
-      <p class="text-xs text-slate-200/90 leading-relaxed">${esc(body)}</p>
+      <h2 class="wordmark text-white" style="font-size:28px">${esc(title)}</h2>
+      <p class="text-sm text-slate-200 leading-relaxed max-w-prose">${esc(body)}</p>
     </div>
   `;
   attackerStatusBadge.className = lost
     ? "text-xs font-mono font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30"
     : "text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-  attackerStatusBadge.textContent = lost ? `STOLEN: ${money}` : "ZERO LOSS ($0.00)";
+  attackerStatusBadge.textContent = lost ? `${money} stolen` : "$0.00 lost";
 
   fetchStatus();
 }
@@ -366,7 +363,7 @@ function updateStats(moneyLost, leakedCount, leakedFiles) {
 function renderScamReport(report) {
   lastScamReport = report;
   scamReportContent.innerHTML = `
-    <div class="bg-rose-950/20 border border-rose-500/30 rounded-xl p-3 space-y-2">
+    <div class="bg-rose-950/20 border border-rose-500/30 rounded p-3 space-y-2">
       <p class="font-bold text-rose-400 uppercase font-mono text-[10px]">What the scammer tried:</p>
       <p class="text-slate-200 text-xs">${esc(report.summary)}</p>
     </div>
@@ -381,7 +378,7 @@ function renderScamReport(report) {
       `).join("")}
     </div>
 
-    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5">
+    <div class="bg-slate-950 p-3 rounded border border-slate-800 space-y-1.5">
       <p class="font-bold text-emerald-400 uppercase font-mono text-[10px]">Recommended Response Steps:</p>
       <ul class="list-disc pl-4 space-y-1 text-[11px] text-slate-300">
         ${report.recommended_next_steps.map(step => `<li>${esc(step)}</li>`).join("")}
@@ -395,7 +392,7 @@ copyReportBtn.addEventListener("click", () => {
     alert("No scam report generated yet.");
     return;
   }
-  const md = `# 🛡️ AgentWall Incident Scam Report\n**Summary:** ${lastScamReport.summary}\n\n## Red Flags\n${lastScamReport.red_flags.map(r => `- **${r.title}**: ${r.evidence}`).join('\n')}\n\n## Next Steps\n${lastScamReport.recommended_next_steps.map(s => `- ${s}`).join('\n')}`;
+  const md = `# AgentWall scam report\n**Summary:** ${lastScamReport.summary}\n\n## Red Flags\n${lastScamReport.red_flags.map(r => `- **${r.title}**: ${r.evidence}`).join('\n')}\n\n## Next Steps\n${lastScamReport.recommended_next_steps.map(s => `- ${s}`).join('\n')}`;
   navigator.clipboard.writeText(md).then(() => {
     alert("Scam report copied to clipboard as Markdown!");
   });
@@ -475,7 +472,7 @@ async function fetchAuditLogs() {
 
 verifyLogBtn.addEventListener("click", async () => {
   verificationResult.classList.remove("hidden");
-  verificationResult.className = "rounded-xl p-3.5 text-xs font-mono bg-slate-800 text-slate-300";
+  verificationResult.className = "rounded p-3.5 text-xs font-mono bg-slate-800 text-slate-300";
   verificationResult.textContent = "Verifying Ed25519 signatures and SHA-256 hash chaining across all log entries...";
 
   try {
@@ -483,21 +480,21 @@ verifyLogBtn.addEventListener("click", async () => {
     const data = await res.json();
 
     if (data.valid) {
-      verificationResult.className = "rounded-xl p-3.5 text-xs font-mono bg-emerald-950/60 border border-emerald-500 text-emerald-300 flex items-center gap-2";
-      verificationResult.innerHTML = `<span>✓</span> <span><strong>VERIFIED INTACT:</strong> ${esc(data.message)} (${esc(data.total_entries)} records validated)</span>`;
+      verificationResult.className = "rounded p-3.5 text-xs font-mono bg-emerald-950/60 border border-emerald-500 text-emerald-300 flex items-center gap-2";
+      verificationResult.innerHTML = `<span><strong>Intact.</strong> ${esc(data.message)} (${esc(data.total_entries)} records validated)</span>`;
     } else {
-      verificationResult.className = "rounded-xl p-3.5 text-xs font-mono bg-rose-950/80 border-2 border-rose-500 text-rose-300 space-y-1";
+      verificationResult.className = "rounded p-3.5 text-xs font-mono bg-rose-950/80 border-2 border-rose-500 text-rose-300 space-y-1";
       verificationResult.innerHTML = `
         <div class="flex items-center gap-2 font-bold text-rose-200">
-          <span>🚨</span> <span>CRYPTOGRAPHIC TAMPERING DETECTED!</span>
+          <span>Tampering detected. The signature chain is broken.</span>
         </div>
         <p class="text-rose-100">${esc(data.message)}</p>
-        <p class="text-[11px] text-rose-300">Broken Entry Index: #${esc(data.broken_index)}</p>
+        <p class="text-[11px] text-rose-300">First broken entry: #${esc(data.broken_index)}</p>
       `;
     }
     fetchAuditLogs();
   } catch (err) {
-    verificationResult.className = "rounded-xl p-3.5 text-xs font-mono bg-rose-950 text-rose-300";
+    verificationResult.className = "rounded p-3.5 text-xs font-mono bg-rose-950 text-rose-300";
     verificationResult.textContent = `Verification error: ${err.message}`;
   }
 });
@@ -506,7 +503,7 @@ tamperLogBtn.addEventListener("click", async () => {
   try {
     const res = await fetch("/api/tamper-log", { method: "POST" });
     const data = await res.json();
-    alert(`⚡ Simulated Tamper: Entry #${data.tampered_index} was modified on disk!\nNow click "Verify Log Integrity" to watch cryptographic detection in action.`);
+    alert(`Entry #${data.tampered_index} was edited on disk. Now press "Verify log integrity" to see the change detected.`);
     fetchAuditLogs();
   } catch (err) {
     alert("Please run a scenario first so there are audit log entries to tamper with.");
@@ -516,9 +513,9 @@ tamperLogBtn.addEventListener("click", async () => {
 function setRunning(running) {
   runBtn.disabled = running;
   if (running) {
-    runBtnText.textContent = "RUNNING...";
+    runBtnText.textContent = "Running…";
   } else {
-    runBtnText.textContent = "RUN SCENARIO";
+    runBtnText.textContent = "Run scenario";
   }
 }
 

@@ -3,49 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AgentWall — AI Fraud & Impersonation Firewall</title>
-  <!-- Tailwind CSS CDN -->
+  <title>AgentWall</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&family=IBM+Plex+Mono:wght@400;600&family=Public+Sans:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="/static/theme.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Every Tailwind colour points at a theme.css token, so the page follows light/dark.
+    const scale = (name) => Object.fromEntries([50,100,200,300,400,500,600,700,800,900,950]
+      .map((s) => [s, `oklch(var(--${name}-${s}) / <alpha-value>)`]));
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            brand: {
-              50: '#f0fdf4',
-              500: '#22c55e',
-              600: '#16a34a',
-              700: '#15803d',
-            }
-          }
-        }
-      }
-    }
+            slate: scale("n"), gray: scale("n"),
+            emerald: scale("safe"), green: scale("safe"), teal: scale("safe"),
+            rose: scale("loss"), red: scale("loss"),
+            amber: scale("hold"), yellow: scale("hold"),
+            cyan: scale("ink"), sky: scale("ink"), purple: scale("ink"), indigo: scale("ink"),
+            white:"oklch(var(--hi) / <alpha-value>)",
+            onfill:"#ffffff",
+          },
+          fontFamily: {
+            sans: ["Public Sans","system-ui","sans-serif"],
+            mono: ["IBM Plex Mono","ui-monospace","monospace"],
+            display: ["Archivo","Arial Narrow","sans-serif"],
+          },
+          borderRadius: { lg:"3px", xl:"4px","2xl":"4px" },
+          boxShadow: { sm:"none", DEFAULT:"none", md:"none", lg:"none", xl:"none","2xl":"none" },
+        },
+      },
+    };
   </script>
   <style>
-    /* Custom scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .wordmark { font-family: var(--font-display); font-weight: 800; font-stretch: 75%; font-size: 24px; line-height: 1; }
+    .panel-title { font-family: var(--font-display); font-stretch: 87.5%; font-weight: 700; font-size: 17px; letter-spacing: 0; text-transform: none; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
 
   <!-- TOP HEADER & CONTROLS -->
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 px-6 py-3.5 shadow-xl">
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 px-6 py-3.5">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
       
       <!-- Brand & Tagline -->
-      <div class="flex items-center space-x-3">
-        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <span class="text-xl">🛡️</span>
-        </div>
+      <div class="flex items-center gap-3">
+        <svg width="26" height="22" viewBox="0 0 26 22" aria-hidden="true" class="text-white flex-none">
+          <rect x="0" y="0" width="12" height="6" fill="currentColor"/><rect x="14" y="0" width="12" height="6" fill="currentColor"/>
+          <rect x="0" y="8" width="5" height="6" fill="currentColor"/><rect x="7" y="8" width="12" height="6" fill="currentColor"/><rect x="21" y="8" width="5" height="6" fill="currentColor"/>
+          <rect x="0" y="16" width="12" height="6" fill="currentColor"/><rect x="14" y="16" width="12" height="6" fill="currentColor"/>
+        </svg>
         <div>
-          <div class="flex items-center space-x-2">
-            <h1 class="text-xl font-bold tracking-tight text-white">AGENTWALL</h1>
-            <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2 py-0.5 rounded-full font-mono font-medium">v0.1.0</span>
+          <div class="flex items-baseline gap-2">
+            <h1 class="wordmark text-white">AgentWall</h1>
+            <span class="text-xs font-mono text-slate-400">v0.1.0</span>
           </div>
           <p class="text-xs text-slate-400">Scammers can email your AI assistant. AgentWall makes sure they can't make it pay them.</p>
         </div>
@@ -69,30 +81,29 @@
         <!-- Mode Toggle (Unprotected / Protected) -->
         <div class="flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
           <button id="modeUnprotectedBtn" class="text-xs font-semibold px-3 py-1.5 rounded transition-all text-slate-400 hover:text-slate-200">
-            ⚠️ UNPROTECTED
+            Unprotected
           </button>
-          <button id="modeProtectedBtn" class="text-xs font-semibold px-3 py-1.5 rounded transition-all bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
-            🛡️ PROTECTED
+          <button id="modeProtectedBtn" class="text-xs font-semibold px-3 py-1.5 rounded transition-all bg-emerald-600 text-onfill">
+            Protected
           </button>
         </div>
 
         <!-- Execution Mode Indicator -->
         <div class="hidden sm:flex items-center bg-slate-800/60 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono text-cyan-400">
-          <span class="h-2 w-2 rounded-full bg-cyan-400 animate-pulse mr-2"></span>
+          <span class="h-2 w-2 rounded-full bg-cyan-400 mr-2"></span>
           REPLAY (OFFLINE)
         </div>
 
         <!-- Run Action Button -->
-        <button id="runBtn" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-lg shadow-emerald-500/25 flex items-center gap-1.5 transition-all transform active:scale-95 disabled:opacity-50">
-          <span>▶</span>
-          <span id="runBtnText">RUN SCENARIO</span>
+        <button id="runBtn" class="bg-cyan-600 hover:bg-cyan-500 text-onfill font-bold text-xs px-5 py-2.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50">
+          <span id="runBtnText">Run scenario</span>
         </button>
 
         <!-- Reset Button -->
-        <button id="resetBtn" title="Reset state" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs px-3 py-2.5 rounded-lg transition-all">
-          🔄
+        <button id="resetBtn" title="Clear the timeline and start over" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs px-3 py-2.5 rounded-lg">
+          Reset
         </button>
-        <a href="/lab" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg">Attack Lab: try to scam it →</a>
+        <a href="/lab" class="border border-rose-500 text-rose-300 hover:bg-rose-500/10 text-xs font-bold px-4 py-2.5 rounded-lg">Attack Lab: try to scam it</a>
       </div>
 
     </div>
@@ -107,13 +118,12 @@
     </div>
 
     <!-- PENDING APPROVAL MODAL / BANNER (Scenario D) -->
-    <div id="approvalBanner" class="hidden bg-amber-950/70 border-2 border-amber-500/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md">
+    <div id="approvalBanner" class="hidden bg-amber-950/70 border-2 border-amber-500/80 rounded-2xl p-5">
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div class="space-y-1">
           <div class="flex items-center gap-2">
             <span class="flex h-3 w-3 relative">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
             </span>
             <span class="text-xs font-mono font-bold tracking-wider text-amber-400 uppercase">Human Verification Required</span>
           </div>
@@ -121,11 +131,11 @@
           <p id="approvalDetails" class="text-xs text-amber-200/80 font-mono">Target: ACC-88301 | Amount: $4,500.00</p>
         </div>
         <div class="flex items-center gap-3 w-full md:w-auto">
-          <button id="approveBtn" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5">
-            <span>✓</span> Approve Payment
+          <button id="approveBtn" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-500 text-onfill font-bold text-xs px-5 py-2.5 rounded-lg flex items-center justify-center gap-1.5">
+            Approve payment
           </button>
-          <button id="denyBtn" class="flex-1 md:flex-initial bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-lg shadow-rose-600/30 transition-all flex items-center justify-center gap-1.5">
-            <span>✕</span> Deny (Suspected Fraud)
+          <button id="denyBtn" class="flex-1 md:flex-initial bg-rose-600 hover:bg-rose-500 text-onfill font-bold text-xs px-5 py-2.5 rounded-lg flex items-center justify-center gap-1.5">
+            Deny: suspected fraud
           </button>
         </div>
       </div>
@@ -136,11 +146,10 @@
 
       <!-- LEFT COLUMN: Agent & Gateway Timeline (7 Cols) -->
       <section class="lg:col-span-7 flex flex-col space-y-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex-1 flex flex-col">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5  flex-1 flex flex-col">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
             <div class="flex items-center space-x-2">
-              <span class="text-base">⚡</span>
-              <h2 class="text-sm font-bold tracking-wide uppercase text-slate-200">Assistant Execution Timeline</h2>
+                            <h2 class="panel-title text-slate-100">What the assistant did</h2>
             </div>
             <span id="timelineCounter" class="text-xs font-mono text-slate-400">0 events</span>
           </div>
@@ -148,7 +157,7 @@
           <!-- Timeline Event Stream -->
           <div id="timelineContainer" class="flex-1 space-y-3.5 overflow-y-auto max-h-[640px] pr-2">
             <div class="p-8 text-center text-slate-500 text-xs italic">
-              Ready to run. Select a scenario and click "RUN SCENARIO" to watch the assistant interact with AgentWall.
+              Ready. Pick a scenario and press Run scenario to watch the assistant interact with AgentWall.
             </div>
           </div>
         </div>
@@ -158,14 +167,13 @@
       <section class="lg:col-span-5 flex flex-col space-y-6">
 
         <!-- What the Attacker Got (The Fake Outbox & Ledger) -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5  space-y-4">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div class="flex items-center space-x-2">
-              <span class="text-base">🎯</span>
-              <h2 class="text-sm font-bold tracking-wide uppercase text-slate-200">What the Attacker Got</h2>
+                            <h2 class="panel-title text-slate-100">What the attacker got</h2>
             </div>
             <span id="attackerStatusBadge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              ZERO LOSS ($0.00)
+              $0.00 lost
             </span>
           </div>
 
@@ -183,7 +191,7 @@
 
           <!-- Fake Outbox Viewer -->
           <div>
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Attacker Outbox (Exfiltrated Emails):</p>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Emails the assistant sent</p>
             <div id="attackerOutboxList" class="bg-slate-950 rounded-xl p-3 border border-slate-800 max-h-36 overflow-y-auto space-y-2 text-xs">
               <p class="text-slate-500 italic text-center py-2">No emails exfiltrated to attacker.</p>
             </div>
@@ -191,14 +199,13 @@
         </div>
 
         <!-- Scam Report / Red Flags Card -->
-        <div id="scamReportCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+        <div id="scamReportCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5  space-y-4">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div class="flex items-center space-x-2">
-              <span class="text-base">📋</span>
-              <h2 class="text-sm font-bold tracking-wide uppercase text-slate-200">Incident Scam Report</h2>
+                            <h2 class="panel-title text-slate-100">Scam report</h2>
             </div>
             <button id="copyReportBtn" class="text-xs text-slate-400 hover:text-white transition-colors">
-              Copy MD
+              Copy as Markdown
             </button>
           </div>
 
@@ -208,10 +215,9 @@
         </div>
 
         <!-- CaMeL Taint & Provenance Inspector -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5  space-y-3">
           <div class="flex items-center space-x-2 border-b border-slate-800 pb-3">
-            <span class="text-base">🏷️</span>
-            <h2 class="text-sm font-bold tracking-wide uppercase text-slate-200">Provenance & Taint Inspector</h2>
+                        <h2 class="panel-title text-slate-100">Where the data came from</h2>
           </div>
           <div id="provenanceList" class="space-y-2 text-xs font-mono">
             <p class="text-slate-500 italic font-sans">Click on any tool call in the timeline to inspect its provenance flows.</p>
@@ -223,22 +229,21 @@
     </div>
 
     <!-- BOTTOM PANEL: Cryptographic Tamper-Evident Audit Log -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5  space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
         <div class="flex items-center space-x-2">
-          <span class="text-base">🔐</span>
-          <div>
-            <h2 class="text-sm font-bold tracking-wide uppercase text-slate-200">Tamper-Evident Audit Log</h2>
+                    <div>
+            <h2 class="panel-title text-slate-100">Signed audit log</h2>
             <p class="text-xs text-slate-400">Ed25519 digitally signed · SHA-256 hash-chained JSON Lines</p>
           </div>
         </div>
         
         <div class="flex items-center gap-2.5">
           <button id="verifyLogBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow">
-            <span>🛡️</span> Verify Log Integrity
+            Verify log integrity
           </button>
           <button id="tamperLogBtn" class="bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-semibold px-3 py-2 rounded-lg transition-all flex items-center gap-1.5" title="Modify an entry to simulate tampering">
-            <span>⚡</span> Simulate Tamper
+            Simulate tampering
           </button>
         </div>
       </div>
