@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import sys
 from urllib.parse import unquote_plus
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -92,8 +93,9 @@ class Gateway:
                 if secret:
                     logged = json.loads(json.dumps(payload, default=str).replace(secret, "••••••"))
                 self.audit_logger.log_event(event_type, logged)
-            except Exception:
-                pass
+            except Exception as exc:
+                # The action itself still goes ahead or stays blocked; never hide a gap in the record.
+                print(f"[agentwall] WARNING: audit log write failed for {event_type}: {exc!r}", file=sys.stderr)
 
     def provenance_for(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Which labelled data flows into this call, and which untrusted content was in context."""

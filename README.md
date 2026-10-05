@@ -77,7 +77,7 @@ Click any tool call in the timeline to see its provenance: which sources flowed 
 python -m agentwall.agent --scenario scenarios/a_attack_email.json --mode unprotected --llm-mode replay
 python -m agentwall.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 python scripts/verify_log.py          # verify the signed audit log
-python -m pytest -q                   # 128 tests
+python -m pytest -q                   # 132 tests
 python -m evals.run_eval              # benchmark -> evals/results.md
 python -m evals.model_matrix          # same scams against 6 real models -> evals/model_matrix.md
 ```
@@ -86,6 +86,8 @@ python -m evals.model_matrix          # same scams against 6 real models -> eval
 ```bash
 claude mcp add agentwall -- /path/to/agentwall/.venv/bin/python -m agentwall.mcp_server
 ```
+
+**Deploy your own (Render).** The repo includes `render.yaml`: in Render choose **New → Blueprint**, pick this repository, and paste the secrets it asks for (`FEATHERLESS_API_KEY`, and optionally `GEMINI_API_KEY` and the three `AGENTBOXD_*` values). It runs with `AGENTWALL_PUBLIC=1` and `TRUST_PROXY=cloudflare`. On the free plan the service sleeps when idle (the first visit takes about a minute) and the scoreboard resets on restart.
 
 **Live mode (optional).** Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (free from Google AI Studio), or `LLM_PROVIDER=featherless` with `FEATHERLESS_API_KEY`. Then use `--llm-mode live`. In live mode the model also runs as a separate, tool-less judge on every incoming message.
 
@@ -168,7 +170,16 @@ Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing
 
 ## Security of AgentWall itself
 
-The dashboard renders attacker-written email text, so all of it is HTML-escaped (we tested a payload that executed 7 times before the fix and 0 times after). The server binds to localhost, restricts cross-origin requests and only accepts known scenario IDs. Text sent to the AI judge cannot close its data boundary. Secrets live in `.env`, which is git-ignored.
+The pages render attacker-written email text, so all of it is HTML-escaped (we tested a payload that executed 7 times before the fix and 0 times after). Text sent to the AI judge cannot close its data boundary. Secrets live in `.env` locally and in the host's secret settings in production; a scan of the full git history finds no keys.
+
+For the public deployment (`AGENTWALL_PUBLIC=1`, see `agentwall/security.py`):
+- **Security headers** on every response: a strict Content-Security-Policy (scripts only from our own origin, no inline scripts, no framing), `nosniff`, `DENY` framing, no referrer, HSTS. No third-party script loads at runtime: the dashboard's CSS is built ahead of time (`scripts/build_css.sh`).
+- **Visitor IPs can't be forged:** behind Render the visitor's address comes from Cloudflare's `CF-Connecting-IP`, never the client-controlled first `X-Forwarded-For` entry.
+- **Limits:** request bodies over 64 KB are refused; per-visitor limits on lab runs, inbox checks and dashboard actions; a daily cap on real-model runs protects the API budget.
+- **Real-inbox privacy:** each visitor gets a private code to put in their subject line; the lab only lists and runs emails carrying that code, and shows sender addresses masked. Nobody can read emails someone else sent.
+- **No sensitive data at rest:** lab runs live in memory only (no recordings), the scoreboard stores counts and never email text, and verification codes are masked in the audit log.
+- **Smaller attack surface:** no interactive API docs; the shared scenario dashboard only replays recorded runs; model errors are shown to visitors without internal detail.
+- **Checks run:** `pip-audit` (no known vulnerabilities in the pinned dependencies), `bandit` (no medium or high findings), a secret scan of all git history, and browser tests of both pages under the CSP.
 
 ## How this was built
 

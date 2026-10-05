@@ -33,6 +33,7 @@ from agentwall.judge import InjectionJudge
 from agentwall.tools import get_tool_category
 from agentwall.llm import BaseLLMProvider, ChatMessage, LLMResponse, create_llm_provider
 from agentwall.scoreboard import Scoreboard
+from agentwall.security import PUBLIC, client_ip
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_SCENARIO = BASE_DIR / "scenarios" / "b_protected_defense.json"
@@ -41,7 +42,6 @@ ATTACK_ID = "lab-1"
 RUNS_PER_IP_PER_HOUR = int(os.environ.get("LAB_RUNS_PER_IP_PER_HOUR", "6"))
 LIVE_RUNS_PER_DAY = int(os.environ.get("LAB_LIVE_RUNS_PER_DAY", "40"))
 LIVE_ENABLED = os.environ.get("LAB_LIVE", "1") == "1"
-TRUST_PROXY = os.environ.get("TRUST_PROXY", "0") == "1"
 EMAIL_RE = re.compile(r"^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$")
 
 router = APIRouter(prefix="/api/lab")
@@ -161,6 +161,9 @@ _runs: Dict[str, _Run] = {}
 _ip_history: Dict[str, Deque[float]] = defaultdict(deque)
 _live_today: Dict[str, int] = defaultdict(int)
 _model_lock = threading.Lock()
+# Each inbox check calls Agentboxd; the page polls every 10 s, so allow a little more than that.
+from agentwall.security import RateLimiter  # noqa: E402
+inbox_limit = RateLimiter(limit=int(os.environ.get("LAB_INBOX_CHECKS_PER_HOUR", "600")))
 scoreboard = Scoreboard()
 
 
@@ -176,11 +179,29 @@ class _SerialProvider(BaseLLMProvider):
 
 
 def _client_ip(request: Request) -> str:
-    if TRUST_PROXY:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return client_ip(request)
+
+
+# Each visitor gets a private code to put in their email's subject. The lab only lists and
+# runs emails carrying that code, so nobody can read emails other visitors sent.
+VISITOR_CODE_RE = re.compile(r"^LAB-[A-Z0-9]{6}$")
+
+
+def _check_code(code: str) -> str:
+    code = (code or "").strip().upper()
+    if not VISITOR_CODE_RE.fullmatch(code):
+        raise HTTPException(status_code=422, detail="Missing or malformed visitor code.")
+    return code
+
+
+def _mask_sender(sender: str) -> str:
+    """Show enough to recognise your own email, not enough to harvest addresses."""
+    name, addr = parseaddr(sender)
+    if "@" not in addr:
+        return "(unknown sender)"
+    local, domain = addr.split("@", 1)
+    masked = f"{local[:1]}***@{domain}"
+    return f"{name} <{masked}>" if name else masked
 
 
 def _live_available() -> bool:
@@ -267,7 +288,9 @@ def _run_lane(run: _Run, lane: str, data: Dict[str, Any], brain: str) -> None:
         run_agent_loop(env=env, gateway=gateway, llm=llm, max_turns=10)
         run.push({"lane": lane, "type": "lane_done", "summary": _lane_summary(env, gateway)})
     except Exception as exc:  # surface model errors to the page instead of hanging
-        run.push({"lane": lane, "type": "lane_error", "message": str(exc)[:300]})
+        detail = "The AI model didn't respond properly. Try again, or use the fully fooled assistant." if PUBLIC \
+            else str(exc)[:300]
+        run.push({"lane": lane, "type": "lane_error", "message": detail})
 
 
 def _record(run: _Run, brain: str, source: str) -> None:
@@ -326,37 +349,42 @@ def public_scoreboard() -> Dict[str, Any]:
 
 
 @router.get("/inbox")
-def real_inbox() -> Dict[str, Any]:
-    """Recent inbound emails at the real Agentboxd inbox (the API key stays server-side)."""
+def real_inbox(request: Request, code: str = "") -> Dict[str, Any]:
+    """Recent inbound emails carrying this visitor's code (the API key stays server-side)."""
     cfg = _agentboxd_config()
     if cfg is None:
         return {"enabled": False}
+    if not code:
+        return {"enabled": True, "address": cfg["address"], "messages": []}
+    code = _check_code(code)
+    inbox_limit.check(request, "inbox checks")
     try:
-        data = _agentboxd_get(f"/v1/inboxes/{cfg['inbox']}/messages", cfg, limit=6, direction="inbound")
+        data = _agentboxd_get(f"/v1/inboxes/{cfg['inbox']}/messages", cfg, limit=25, direction="inbound")
     except Exception as exc:
         return {"enabled": True, "address": cfg["address"], "error": f"Couldn't reach Agentboxd ({type(exc).__name__})."}
     messages = [
-        {"id": m["id"], "from": m.get("from", ""), "subject": m.get("subject", ""),
+        {"id": m["id"], "from": _mask_sender(m.get("from", "")), "subject": m.get("subject", ""),
          "received_at": m.get("received_at", ""), "screening": _screening_labels(m)}
-        for m in data.get("data", [])
-    ]
+        for m in data.get("data", []) if code in (m.get("subject") or "").upper()
+    ][:6]
     return {"enabled": True, "address": cfg["address"], "messages": messages}
 
 
 @router.post("/run-inbox/{message_id}")
 def start_from_inbox(message_id: str, request: Request, brain: str = "fooled",
-                     tamper: bool = False) -> Dict[str, Any]:
+                     tamper: bool = False, code: str = "") -> Dict[str, Any]:
     """Run a real email from the Agentboxd inbox through both assistants."""
     cfg = _agentboxd_config()
     if cfg is None:
         raise HTTPException(status_code=404, detail="No real inbox is configured.")
     if not re.fullmatch(r"[0-9a-fA-F-]{8,64}", message_id):
         raise HTTPException(status_code=422, detail="Bad message id.")
+    code = _check_code(code)
     try:
         m = _agentboxd_get(f"/v1/messages/{message_id}", cfg)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Couldn't fetch the email from Agentboxd ({type(exc).__name__}).")
-    if m.get("inbox_id") not in (None, cfg["inbox"]):
+    if m.get("inbox_id") not in (None, cfg["inbox"]) or code not in (m.get("subject") or "").upper():
         raise HTTPException(status_code=404, detail="Unknown message.")
     name, addr = parseaddr(m.get("from", ""))
     email = LabEmail(

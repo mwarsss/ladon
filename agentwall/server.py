@@ -32,6 +32,7 @@ from agentwall.environment import Environment
 from agentwall.gateway import Gateway
 from agentwall.lab import router as lab_router
 from agentwall.llm import create_llm_provider
+from agentwall.security import PUBLIC, RateLimiter, SecurityMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
@@ -39,7 +40,14 @@ SCENARIOS_DIR = BASE_DIR / "scenarios"
 LOGS_DIR = BASE_DIR / "logs"
 KEYS_DIR = BASE_DIR / "keys"
 
-app = FastAPI(title="AgentWall Dashboard API", version="0.1.0")
+app = FastAPI(title="AgentWall Dashboard API", version="0.2.0",
+              # No interactive API docs on a public deployment.
+              docs_url=None if PUBLIC else "/docs", redoc_url=None, openapi_url=None if PUBLIC else "/openapi.json")
+app.add_middleware(SecurityMiddleware)
+
+# The scenario dashboard shares one state between visitors, so its state-changing
+# endpoints are limited per visitor.
+dashboard_limit = RateLimiter(limit=int(os.environ.get("DASHBOARD_ACTIONS_PER_HOUR", "60")))
 
 # The dashboard is served from the same origin, so no cross-site access is needed.
 ALLOWED_ORIGINS = os.environ.get("AGENTWALL_ALLOWED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
@@ -243,8 +251,11 @@ def _run_worker(scenario_id: str, mode: str, llm_mode: str) -> None:
 
 
 @app.post("/api/run")
-def start_run(req: RunRequest, background_tasks: BackgroundTasks):
+def start_run(req: RunRequest, background_tasks: BackgroundTasks, request: Request):
     """Start executing a scenario in background."""
+    dashboard_limit.check(request, "scenario runs")
+    if PUBLIC and req.llm_mode != "replay":
+        raise HTTPException(status_code=403, detail="The public demo replays recorded runs. Use the Attack Lab for a live model.")
     if req.scenario_id not in KNOWN_SCENARIO_IDS:
         raise HTTPException(status_code=404, detail="Unknown scenario.")
     if req.mode not in ("protected", "unprotected") or req.llm_mode not in ("replay", "auto", "live"):
@@ -259,8 +270,9 @@ def start_run(req: RunRequest, background_tasks: BackgroundTasks):
 
 
 @app.post("/api/approvals/{approval_id}/resolve")
-def resolve_approval(approval_id: str, req: ResolveApprovalRequest):
+def resolve_approval(approval_id: str, req: ResolveApprovalRequest, request: Request):
     """Approve or Deny a held action."""
+    dashboard_limit.check(request, "approval attempts")
     try:
         success = state.approval_queue.resolve(approval_id, req.approved, req.note, code=req.code)
     except CodeRejected as exc:
@@ -313,8 +325,9 @@ async def sse_events(request: Request):
 
 
 @app.post("/api/verify-log")
-def verify_audit_log():
+def verify_audit_log(request: Request):
     """Verify cryptographic integrity of the audit log."""
+    dashboard_limit.check(request, "log checks")
     log_file = LOGS_DIR / "audit.jsonl"
     pub_key_file = KEYS_DIR / "ed25519_public.pem"
 
@@ -345,8 +358,9 @@ def verify_audit_log():
 
 
 @app.post("/api/tamper-log")
-def tamper_audit_log():
+def tamper_audit_log(request: Request):
     """Deliberately modify one entry in audit.jsonl to demonstrate cryptographic tamper detection."""
+    dashboard_limit.check(request, "tamper demos")
     log_file = LOGS_DIR / "audit.jsonl"
     if not log_file.exists() or log_file.stat().st_size == 0:
         raise HTTPException(status_code=400, detail="Audit log is empty. Run a scenario first.")
@@ -379,8 +393,9 @@ def tamper_audit_log():
 
 
 @app.post("/api/reset")
-def reset_system():
+def reset_system(request: Request):
     """Reset system state and mutable data."""
+    dashboard_limit.check(request, "resets")
     with state.lock:
         state.is_running = False
         state.env = None
@@ -421,9 +436,11 @@ def index_page():
         return HTMLResponse(f.read())
 
 
-def start_server(host: str = "127.0.0.1", port: int = 8000) -> None:
+def start_server(host: Optional[str] = None, port: Optional[int] = None) -> None:
     import uvicorn
-    uvicorn.run("agentwall.server:app", host=host, port=port, reload=False)
+    # Local runs stay on 127.0.0.1; a host like Render sets HOST=0.0.0.0 and PORT.
+    uvicorn.run("agentwall.server:app", host=host or os.environ.get("HOST", "127.0.0.1"),
+                port=port or int(os.environ.get("PORT", "8000")), reload=False)
 
 
 if __name__ == "__main__":

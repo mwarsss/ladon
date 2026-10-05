@@ -238,15 +238,29 @@ function follow(runId) {
   document.querySelector(".ledgers").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// A private code for this visitor: the lab only shows real-inbox emails whose subject carries it.
+const visitorCode = (() => {
+  const make = () => "LAB-" + Array.from(crypto.getRandomValues(new Uint8Array(6)),
+    (b) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join("");
+  try {
+    const saved = localStorage.getItem("agentwall-visitor-code");
+    if (saved && /^LAB-[A-Z0-9]{6}$/.test(saved)) return saved;
+    const fresh = make();
+    localStorage.setItem("agentwall-visitor-code", fresh);
+    return fresh;
+  } catch (e) { return make(); }
+})();
+
 async function loadInbox() {
   let data;
-  try { data = await (await fetch("/api/lab/inbox")).json(); } catch (e) { return; }
+  try { data = await (await fetch(`/api/lab/inbox?code=${visitorCode}`)).json(); } catch (e) { return; }
   if (!data.enabled) return;
   $("realInbox").hidden = false;
   $("inboxAddress").textContent = data.address || "";
+  $("visitorCode").textContent = visitorCode;
   const list = $("inboxList");
   if (data.error) { list.innerHTML = `<li class="inbox-empty k-loss">${esc(data.error)}</li>`; return; }
-  if (!data.messages.length) { list.innerHTML = `<li class="inbox-empty">No emails yet. Send one to the address above.</li>`; return; }
+  if (!data.messages.length) { list.innerHTML = `<li class="inbox-empty">No emails with your code yet. Send one to the address above with ${esc(visitorCode)} in the subject.</li>`; return; }
   list.innerHTML = data.messages.map(m => `
     <li class="inbox-row">
       <div>
@@ -293,7 +307,7 @@ async function loadScoreboard() {
 
 async function runInbox(id) {
   $("formError").hidden = true;
-  const res = await fetch(`/api/lab/run-inbox/${encodeURIComponent(id)}?brain=${brain}&tamper=${$("tamper").checked}`, { method: "POST" });
+  const res = await fetch(`/api/lab/run-inbox/${encodeURIComponent(id)}?brain=${brain}&tamper=${$("tamper").checked}&code=${visitorCode}`, { method: "POST" });
   const data = await res.json();
   if (!res.ok) {
     $("formError").textContent = typeof data.detail === "string" ? data.detail : "Couldn't run that email.";
