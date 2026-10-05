@@ -1,4 +1,4 @@
-// AgentWall Interactive Dashboard Client
+// Ladon Interactive Dashboard Client
 
 let currentMode = "protected";
 let currentScenario = "b_protected_defense";
@@ -311,7 +311,7 @@ async function resolveApproval(approvalId, approved, note, code) {
     document.getElementById("supplierPhone").classList.add("hidden");
     return true;
   } catch (err) {
-    errorBox.textContent = "Couldn't reach AgentWall. Try again.";
+    errorBox.textContent = "Couldn't reach Ladon. Try again.";
     errorBox.classList.remove("hidden");
     return false;
   }
@@ -335,8 +335,8 @@ function finishRun(result) {
     if (result.leaked_files.length) parts.push(`leaked: ${result.leaked_files.join(", ")}`);
     title = parts.join(" · ");
     body = currentMode === "unprotected"
-      ? "Without AgentWall the assistant followed the scammer's instructions. Run the same inbox in Protected mode to compare."
-      : "AgentWall did not stop this run. See the timeline for the actions that got through.";
+      ? "Without Ladon the assistant followed the scammer's instructions. Run the same inbox in Protected mode to compare."
+      : "Ladon did not stop this run. See the timeline for the actions that got through.";
   } else if (stopped > 0) {
     tone = "emerald"; kicker = runStats.blocked ? "Scam stopped" : "Verified before paying";
     const parts = [];
@@ -352,14 +352,14 @@ function finishRun(result) {
   } else {
     tone = "sky"; kicker = "All clear";
     title = "No threats found · all work completed";
-    body = "AgentWall allowed every action in this run: nothing in this inbox tried to move money or data where it shouldn't go.";
+    body = "Ladon allowed every action in this run: nothing in this inbox tried to move money or data where it shouldn't go.";
   }
   outcomeBanner.className = `bg-${tone}-500/10 border border-${tone}-500 p-5`;
   outcomeBanner.innerHTML = `
     <div class="space-y-1">
       <div class="flex items-center gap-2">
         <span class="text-xs font-mono font-bold uppercase tracking-wider text-${tone}-400">${esc(kicker)}</span>
-        <span class="text-xs text-slate-400 font-mono">${currentMode === "protected" ? "protected by AgentWall" : "no protection"}</span>
+        <span class="text-xs text-slate-400 font-mono">${currentMode === "protected" ? "protected by Ladon" : "no protection"}</span>
       </div>
       <h2 class="wordmark text-white" style="font-size:28px">${esc(title)}</h2>
       <p class="text-sm text-slate-200 leading-relaxed max-w-prose">${esc(body)}</p>
@@ -422,7 +422,7 @@ copyReportBtn.addEventListener("click", () => {
     alert("No scam report generated yet.");
     return;
   }
-  const md = `# AgentWall scam report\n**Summary:** ${lastScamReport.summary}\n\n## Red Flags\n${lastScamReport.red_flags.map(r => `- **${r.title}**: ${r.evidence}`).join('\n')}\n\n## Next Steps\n${lastScamReport.recommended_next_steps.map(s => `- ${s}`).join('\n')}`;
+  const md = `# Ladon scam report\n**Summary:** ${lastScamReport.summary}\n\n## Red Flags\n${lastScamReport.red_flags.map(r => `- **${r.title}**: ${r.evidence}`).join('\n')}\n\n## Next Steps\n${lastScamReport.recommended_next_steps.map(s => `- ${s}`).join('\n')}`;
   navigator.clipboard.writeText(md).then(() => {
     alert("Scam report copied to clipboard as Markdown!");
   });

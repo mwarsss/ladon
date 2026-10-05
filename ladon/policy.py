@@ -1,5 +1,5 @@
 """
-Zero-Trust Policy Engine for AgentWall.
+Zero-Trust Policy Engine for Ladon.
 
 Evaluates every tool call against YAML security rules in order (first match wins)
 with default-deny backstops for external communication and financial transfers.
@@ -16,14 +16,14 @@ from urllib.parse import unquote_plus, urlsplit
 
 import yaml
 
-from agentwall.environment import Environment
-from agentwall.impersonation import (
+from ladon.environment import Environment
+from ladon.impersonation import (
     ImpersonationSignal,
     analyze_email_signals,
     check_lookalike_domain,
     extract_domain,
 )
-from agentwall.taint import TaintTracker
+from ladon.taint import TaintTracker
 
 
 @dataclass

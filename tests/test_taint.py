@@ -1,11 +1,11 @@
 """
-Unit tests for Taint and Provenance Tracking (agentwall/taint.py).
+Unit tests for Taint and Provenance Tracking (ladon/taint.py).
 """
 
 import pytest
 
-from agentwall.environment import Environment, FileItem
-from agentwall.taint import TaintTracker
+from ladon.environment import Environment, FileItem
+from ladon.taint import TaintTracker
 
 
 def test_taint_registration_and_exact_match():

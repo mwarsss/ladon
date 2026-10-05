@@ -1,13 +1,13 @@
 """
-Unit tests for the Zero-Trust Policy Engine (agentwall/policy.py).
+Unit tests for the Zero-Trust Policy Engine (ladon/policy.py).
 """
 
 import pytest
 
-from agentwall.environment import Environment, Payee
-from agentwall.impersonation import ImpersonationSignal
-from agentwall.policy import PolicyEngine
-from agentwall.taint import TaintTracker
+from ladon.environment import Environment, Payee
+from ladon.impersonation import ImpersonationSignal
+from ladon.policy import PolicyEngine
+from ladon.taint import TaintTracker
 
 
 @pytest.fixture
@@ -123,8 +123,8 @@ def test_hold_unverified_payee_for_approval(policy_engine, mock_env):
 def test_new_account_from_known_supplier_is_held_not_blocked():
     import json
     from pathlib import Path
-    from agentwall.environment import Environment
-    from agentwall.gateway import Gateway
+    from ladon.environment import Environment
+    from ladon.gateway import Gateway
 
     data = json.loads((Path(__file__).resolve().parent.parent / "scenarios" / "d_verify_bank_change.json").read_text())
     env = Environment.from_scenario(data)
@@ -136,8 +136,8 @@ def test_new_account_from_known_supplier_is_held_not_blocked():
 
 
 def test_payment_without_payee_or_amount_is_refused_not_held():
-    from agentwall.environment import Environment
-    from agentwall.gateway import Gateway
+    from ladon.environment import Environment
+    from ladon.gateway import Gateway
     from evals.cases import CASES, scenario_for
 
     env = Environment.from_scenario(scenario_for(next(c for c in CASES if c["id"] == "B01")))

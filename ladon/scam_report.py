@@ -1,5 +1,5 @@
 """
-Scam Report Generator for AgentWall.
+Scam Report Generator for Ladon.
 
 Generates structured, plain-language incident response reports for business users
 and security administrators when fraudulent actions are blocked or held.
@@ -12,9 +12,9 @@ import datetime
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from agentwall.environment import Contact, Environment
-from agentwall.impersonation import ImpersonationSignal
-from agentwall.judge import JudgeVerdict
+from ladon.environment import Contact, Environment
+from ladon.impersonation import ImpersonationSignal
+from ladon.judge import JudgeVerdict
 
 
 @dataclass
@@ -46,7 +46,7 @@ class ScamReport:
     def to_markdown(self) -> str:
         """Render human-readable Markdown incident summary."""
         lines = [
-            "# 🛡️ AgentWall Incident Scam Report",
+            "# 🛡️ Ladon Incident Scam Report",
             f"**Generated at:** {self.timestamp}",
             "",
             "## 1. What the Scammer Tried",
@@ -61,7 +61,7 @@ class ScamReport:
 
         lines.extend([
             "",
-            "## 3. What AgentWall Prevented",
+            "## 3. What Ladon Prevented",
             f"- **Financial Loss Prevented:** ${self.prevented_impact.prevented_payment_total:,.2f}",
         ])
         if self.prevented_impact.blocked_payee_accounts:

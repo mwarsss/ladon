@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway
-from agentwall.policy import PolicyEngine
+from ladon.environment import Environment
+from ladon.gateway import Gateway
+from ladon.policy import PolicyEngine
 
 ROOT = Path(__file__).resolve().parent.parent
 PORTAL = "https://portal.hararefuel.example/invoices"

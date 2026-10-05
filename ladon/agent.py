@@ -2,7 +2,7 @@
 Agent loop for the Kopje Logistics email-and-invoices assistant.
 
 Executes user requests by interacting with the LLM and routing all tool calls
-strictly through the AgentWall Gateway.
+strictly through the Ladon Gateway.
 """
 
 from __future__ import annotations
@@ -15,11 +15,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway, GatewayDecision
-from agentwall.judge import InjectionJudge
-from agentwall.llm import BaseLLMProvider, ChatMessage, create_llm_provider
-from agentwall.tools import ALL_TOOLS
+from ladon.environment import Environment
+from ladon.gateway import Gateway, GatewayDecision
+from ladon.judge import InjectionJudge
+from ladon.llm import BaseLLMProvider, ChatMessage, create_llm_provider
+from ladon.tools import ALL_TOOLS
 
 SYSTEM_INSTRUCTION = """You are the autonomous email-and-invoices assistant for Kopje Logistics (domain: kopjelogistics.example).
 Your goal is to process the daily inbox:
@@ -129,14 +129,14 @@ def run_agent_loop(
 
 def make_judge(llm: Any) -> InjectionJudge:
     """Use the live model as an isolated, tool-less judge; replays stay heuristic-only."""
-    from agentwall.llm import FeatherlessProvider, GeminiProvider
+    from ladon.llm import FeatherlessProvider, GeminiProvider
 
     live = isinstance(llm, (GeminiProvider, FeatherlessProvider))
     return InjectionJudge(llm_provider=llm if live else None)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the AgentWall email assistant.")
+    parser = argparse.ArgumentParser(description="Run the Ladon email assistant.")
     parser.add_argument(
         "--scenario",
         type=str,
@@ -171,7 +171,7 @@ def main() -> None:
     with open(scenario_path, "r", encoding="utf-8") as f:
         scenario_data = json.load(f)
 
-    from agentwall.audit import AuditLogger
+    from ladon.audit import AuditLogger
     scenario_id = scenario_data.get("scenario_id", scenario_path.stem)
     env = Environment.from_scenario(scenario_data)
     audit_logger = AuditLogger()
@@ -183,7 +183,7 @@ def main() -> None:
     gateway = Gateway(env=env, mode=args.mode, audit_logger=audit_logger, judge=make_judge(llm))
 
     print(f"\n==================================================")
-    print(f" AGENTWALL ASSISTANT RUNNER")
+    print(f" LADON ASSISTANT RUNNER")
     print(f" Scenario : {scenario_data.get('name', scenario_id)}")
     print(f" Gateway  : {args.mode.upper()}")
     print(f" LLM Mode : {args.llm_mode.upper()}")

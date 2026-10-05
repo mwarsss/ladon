@@ -17,16 +17,16 @@ from urllib.parse import unquote_plus
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-from agentwall.approvals import ApprovalItem, ApprovalQueue
-from agentwall.audit import AuditLogger
-from agentwall.environment import Environment
-from agentwall.impersonation import ImpersonationSignal, analyze_email_signals
-from agentwall.judge import InjectionJudge, JudgeVerdict
-from agentwall.policy import PolicyDecision, PolicyEngine
-from agentwall.scam_report import ScamReport, generate_scam_report
-from agentwall.taint import TaintTracker
-from agentwall.tools import execute_tool, get_tool_category, get_tool_metadata
-from agentwall.verification import code_hash, new_code, sms_text, verified_contact
+from ladon.approvals import ApprovalItem, ApprovalQueue
+from ladon.audit import AuditLogger
+from ladon.environment import Environment
+from ladon.impersonation import ImpersonationSignal, analyze_email_signals
+from ladon.judge import InjectionJudge, JudgeVerdict
+from ladon.policy import PolicyDecision, PolicyEngine
+from ladon.scam_report import ScamReport, generate_scam_report
+from ladon.taint import TaintTracker
+from ladon.tools import execute_tool, get_tool_category, get_tool_metadata
+from ladon.verification import code_hash, new_code, sms_text, verified_contact
 
 
 @dataclass
@@ -95,7 +95,7 @@ class Gateway:
                 self.audit_logger.log_event(event_type, logged)
             except Exception as exc:
                 # The action itself still goes ahead or stays blocked; never hide a gap in the record.
-                print(f"[agentwall] WARNING: audit log write failed for {event_type}: {exc!r}", file=sys.stderr)
+                print(f"[ladon] WARNING: audit log write failed for {event_type}: {exc!r}", file=sys.stderr)
 
     def provenance_for(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Which labelled data flows into this call, and which untrusted content was in context."""

@@ -1,5 +1,5 @@
 /* Attack Lab. Layout: a remittance desk. The case file and the compose form sit on top;
-   below, two ledger columns (no protection | AgentWall) separated by a single rule,
+   below, two ledger columns (no protection | Ladon) separated by a single rule,
    each ending in a running total. Colours come from theme.css. */
 :root {
   --bg: oklch(var(--n-950));

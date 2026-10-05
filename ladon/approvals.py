@@ -1,5 +1,5 @@
 """
-Human-in-the-Loop Approval Queue for AgentWall.
+Human-in-the-Loop Approval Queue for Ladon.
 
 Holds risky actions (e.g. bank details changes, high-value transfers) in suspense
 until a human administrator explicitly reviews and approves or denies them in the dashboard.
@@ -112,7 +112,7 @@ class ApprovalQueue:
         Approving an item that has a verification code needs that code. Three wrong
         codes deny the payment, since someone is guessing.
         """
-        from agentwall.verification import MAX_ATTEMPTS, code_matches
+        from ladon.verification import MAX_ATTEMPTS, code_matches
 
         with self._lock:
             item = self._items.get(approval_id)

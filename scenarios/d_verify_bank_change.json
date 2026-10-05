@@ -1,7 +1,7 @@
 {
   "scenario_id": "d_verify_bank_change",
   "name": "Scenario D - Verify Before Paying (Human-in-the-Loop Approval)",
-  "description": "A genuine supplier emails asking to pay to a new bank account. AgentWall holds the payment and requests human confirmation through a trusted channel.",
+  "description": "A genuine supplier emails asking to pay to a new bank account. Ladon holds the payment and requests human confirmation through a trusted channel.",
   "company_domain": "kopjelogistics.example",
   "trusted_contacts": [
     {

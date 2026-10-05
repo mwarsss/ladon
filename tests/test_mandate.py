@@ -3,10 +3,10 @@
 import copy
 import datetime
 
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway
-from agentwall.mandate import sign_mandate
-from agentwall.policy import PolicyEngine
+from ladon.environment import Environment
+from ladon.gateway import Gateway
+from ladon.mandate import sign_mandate
+from ladon.policy import PolicyEngine
 from evals.cases import CASES, scenario_for
 
 INVOICE = next(c for c in CASES if c["id"] == "B01")

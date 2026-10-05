@@ -2,19 +2,19 @@
 # in the Render dashboard and never stored in git.
 services:
   - type: web
-    name: agentwall
+    name: ladon
     runtime: python
     plan: free
     region: frankfurt
     branch: main
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn agentwall.server:app --host 0.0.0.0 --port $PORT --no-server-header --timeout-graceful-shutdown 5
+    startCommand: uvicorn ladon.server:app --host 0.0.0.0 --port $PORT --no-server-header --timeout-graceful-shutdown 5
     healthCheckPath: /api/lab/status
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: "3.14.4"
-      - key: AGENTWALL_PUBLIC
+      - key: LADON_PUBLIC
         value: "1"
       - key: TRUST_PROXY
         value: cloudflare
@@ -30,8 +30,8 @@ services:
         value: "6"
       - key: DASHBOARD_ACTIONS_PER_HOUR
         value: "60"
-      - key: AGENTWALL_ALLOWED_ORIGINS
-        value: https://agentwall.onrender.com
+      - key: LADON_ALLOWED_ORIGINS
+        value: https://ladon.onrender.com
       - key: FEATHERLESS_API_KEY
         sync: false
       - key: GEMINI_API_KEY

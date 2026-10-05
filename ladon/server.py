@@ -1,5 +1,5 @@
 """
-FastAPI Server and Real-Time Event Hub for AgentWall.
+FastAPI Server and Real-Time Event Hub for Ladon.
 
 Provides REST APIs and Server-Sent Events (SSE) streaming for the live interactive web dashboard:
 - Run Scenarios A–E in Unprotected or Protected modes
@@ -25,14 +25,14 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from agentwall.agent import make_judge, run_agent_loop
-from agentwall.approvals import ApprovalQueue, CodeRejected
-from agentwall.audit import AuditLogger
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway
-from agentwall.lab import router as lab_router
-from agentwall.llm import create_llm_provider
-from agentwall.security import PUBLIC, RateLimiter, SecurityMiddleware
+from ladon.agent import make_judge, run_agent_loop
+from ladon.approvals import ApprovalQueue, CodeRejected
+from ladon.audit import AuditLogger
+from ladon.environment import Environment
+from ladon.gateway import Gateway
+from ladon.lab import router as lab_router
+from ladon.llm import create_llm_provider
+from ladon.security import PUBLIC, RateLimiter, SecurityMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
@@ -40,7 +40,7 @@ SCENARIOS_DIR = BASE_DIR / "scenarios"
 LOGS_DIR = BASE_DIR / "logs"
 KEYS_DIR = BASE_DIR / "keys"
 
-app = FastAPI(title="AgentWall Dashboard API", version="0.2.0",
+app = FastAPI(title="Ladon Dashboard API", version="0.2.0",
               # No interactive API docs on a public deployment.
               docs_url=None if PUBLIC else "/docs", redoc_url=None, openapi_url=None if PUBLIC else "/openapi.json")
 app.add_middleware(SecurityMiddleware)
@@ -50,7 +50,7 @@ app.add_middleware(SecurityMiddleware)
 dashboard_limit = RateLimiter(limit=int(os.environ.get("DASHBOARD_ACTIONS_PER_HOUR", "60")))
 
 # The dashboard is served from the same origin, so no cross-site access is needed.
-ALLOWED_ORIGINS = os.environ.get("AGENTWALL_ALLOWED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
+ALLOWED_ORIGINS = os.environ.get("LADON_ALLOWED_ORIGINS", "http://127.0.0.1:8000,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -116,19 +116,19 @@ def get_scenarios():
         {
             "id": "b_protected_defense",
             "name": "Scenario B: Protected Defense (Firewall Active)",
-            "description": "The exact same attack email, but AgentWall stops the fraud, prevents exfiltration, and finishes legitimate work.",
+            "description": "The exact same attack email, but Ladon stops the fraud, prevents exfiltration, and finishes legitimate work.",
             "recommended_mode": "protected",
         },
         {
             "id": "c_benign_inbox",
             "name": "Scenario C: Benign Daily Inbox (Zero False Alarms)",
-            "description": "Normal business operations: customer transport inquiries and verified supplier invoice. Proves AgentWall does not over-block.",
+            "description": "Normal business operations: customer transport inquiries and verified supplier invoice. Proves Ladon does not over-block.",
             "recommended_mode": "protected",
         },
         {
             "id": "d_verify_bank_change",
             "name": "Scenario D: Verify Before Paying (Human Approval)",
-            "description": "Genuine supplier asks to pay to a new bank account. AgentWall pauses the payment and requests human confirmation.",
+            "description": "Genuine supplier asks to pay to a new bank account. Ladon pauses the payment and requests human confirmation.",
             "recommended_mode": "protected",
         },
         {
@@ -431,7 +431,7 @@ def index_page():
     """Serve main dashboard single page app."""
     index_file = WEB_DIR / "index.html"
     if not index_file.exists():
-        return HTMLResponse("<h1>AgentWall Dashboard loading...</h1>", status_code=200)
+        return HTMLResponse("<h1>Ladon Dashboard loading...</h1>", status_code=200)
     with open(index_file, "r", encoding="utf-8") as f:
         return HTMLResponse(f.read())
 
@@ -439,7 +439,7 @@ def index_page():
 def start_server(host: Optional[str] = None, port: Optional[int] = None) -> None:
     import uvicorn
     # Local runs stay on 127.0.0.1; a host like Render sets HOST=0.0.0.0 and PORT.
-    uvicorn.run("agentwall.server:app", host=host or os.environ.get("HOST", "127.0.0.1"),
+    uvicorn.run("ladon.server:app", host=host or os.environ.get("HOST", "127.0.0.1"),
                 port=port or int(os.environ.get("PORT", "8000")), reload=False)
 
 

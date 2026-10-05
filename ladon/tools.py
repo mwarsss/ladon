@@ -1,5 +1,5 @@
 """
-Tools available to the AgentWall AI assistant.
+Tools available to the Ladon AI assistant.
 
 Each tool defines:
 - name and descriptive documentation
@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-from agentwall.environment import Environment
+from ladon.environment import Environment
 
 
 @dataclass

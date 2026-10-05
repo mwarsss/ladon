@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from agentwall.agent import run_agent_loop
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway
-from agentwall.llm import ReplayProvider
-from agentwall.replay import ReplayManager
-from agentwall.tools import (
+from ladon.agent import run_agent_loop
+from ladon.environment import Environment
+from ladon.gateway import Gateway
+from ladon.llm import ReplayProvider
+from ladon.replay import ReplayManager
+from ladon.tools import (
     ALL_TOOLS,
     execute_tool,
     get_tool_category,

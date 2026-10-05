@@ -17,6 +17,6 @@ def test_protected_decisions_match_expectations(case):
 
 @pytest.mark.parametrize("case", [c for c in CASES if any(a["label"] == "attack" for a in c["actions"])],
                          ids=lambda c: c["id"])
-def test_every_attack_succeeds_without_agentwall(case):
+def test_every_attack_succeeds_without_ladon(case):
     result = run_case(case, "unprotected")
     assert any(o["label"] == "attack" and o["got"] == "allow" for o in result["outcomes"])

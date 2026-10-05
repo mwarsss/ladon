@@ -1,4 +1,4 @@
-# AgentWall — Build Progress Log
+# Ladon — Build Progress Log
 
 **ForgeHacks Online 2026** · Track: AI + Cybersecurity  
 **Goal**: Build a fraud and impersonation firewall for AI assistants.
@@ -9,16 +9,16 @@
 
 - [x] **PHASE 1 (Oct 5) — Foundations**
   - Repo scaffold, requirements, .env.example, .gitignore, LICENSE.
-  - `agentwall/environment.py`, `agentwall/tools.py`, `scenarios/a_attack_email.json`, `scenarios/c_benign_inbox.json`.
-  - `agentwall/agent.py` loop with tool calling, `agentwall/gateway.py` in UNPROTECTED pass-through mode, `agentwall/replay.py` RECORD/REPLAY, `agentwall/llm.py` Gemini/Featherless/Replay interface.
+  - `ladon/environment.py`, `ladon/tools.py`, `scenarios/a_attack_email.json`, `scenarios/c_benign_inbox.json`.
+  - `ladon/agent.py` loop with tool calling, `ladon/gateway.py` in UNPROTECTED pass-through mode, `ladon/replay.py` RECORD/REPLAY, `ladon/llm.py` Gemini/Featherless/Replay interface.
   - **Checks verified**: Run scenario A unprotected from CLI and see payroll leaked into fake outbox and $8,450 paid to scammer; replay it with API key removed; Scenario C completes benign tasks with 0 loss; 6/6 unit tests pass.
 
 - [x] **PHASE 2 (Oct 6) — The Security Core**
-  - `agentwall/taint.py`: Provenance labels and taint propagation (exact substring + rapidfuzz token fuzzy matching, untrusted entity extraction, instruction provenance).
-  - `agentwall/impersonation.py`: Pure-deterministic scam detection (homoglyph normalization, rapidfuzz edit distance lookalike detection, display-name spoofing, payee/bank account changes, pressure tactics, reply-to mismatch).
-  - `policies/default.yaml` + `agentwall/policy.py`: Zero-trust YAML policy engine with default-deny backstops for external email and financial actions.
-  - `agentwall/audit.py` + `scripts/verify_log.py`: Hash-chained (SHA-256) and Ed25519 digitally signed audit logger and CLI verification tool.
-  - `agentwall/gateway.py`: Full PROTECTED mode interception.
+  - `ladon/taint.py`: Provenance labels and taint propagation (exact substring + rapidfuzz token fuzzy matching, untrusted entity extraction, instruction provenance).
+  - `ladon/impersonation.py`: Pure-deterministic scam detection (homoglyph normalization, rapidfuzz edit distance lookalike detection, display-name spoofing, payee/bank account changes, pressure tactics, reply-to mismatch).
+  - `policies/default.yaml` + `ladon/policy.py`: Zero-trust YAML policy engine with default-deny backstops for external email and financial actions.
+  - `ladon/audit.py` + `scripts/verify_log.py`: Hash-chained (SHA-256) and Ed25519 digitally signed audit logger and CLI verification tool.
+  - `ladon/gateway.py`: Full PROTECTED mode interception.
   - **Checks verified**: Scenario B in PROTECTED mode blocks payroll exfiltration and $8,450 fraudulent transfer while allowing legitimate $3,200 supplier invoice and customer quote draft; Scenario C in PROTECTED mode completes all tasks with 0 false positives; tampering with an audit log line is detected by `scripts/verify_log.py` with exact index reporting; 27/27 pytest tests pass.
 
 - [x] **PHASE 3 — Judge, approvals, scam report, dashboard**
@@ -27,7 +27,7 @@
     data-driven outcome banners, genuine bank changes held instead of blocked, server bound to 127.0.0.1.
 
 - [x] **PHASE 4 — Evaluation and hardening**
-  - `evals/` benchmark: 27 scripted traces; 18/18 attacks succeed unprotected, 3/18 with AgentWall (all documented
+  - `evals/` benchmark: 27 scripted traces; 18/18 attacks succeed unprotected, 3/18 with Ladon (all documented
     known misses), 0 false positives, 42/42 decisions as expected, ~0.08 ms added per call. Enforced by tests.
   - Fixed: URL exfiltration via fetch_url, inflated/duplicate payments to known payees, one-shared-word false
     matches in data-flow tracking, internal/trusted-recipient false positives, silent policy typos.
@@ -43,7 +43,7 @@
     positive, now fixed and covered by benchmark case B09.
 
 - [x] **Attack Lab and real inbox (Oct 5)**
-  - `/lab`: visitors write a scam; two assistants (unprotected / AgentWall) run it side by side, fully
+  - `/lab`: visitors write a scam; two assistants (unprotected / Ladon) run it side by side, fully
     fooled offline or a real model. Real Agentboxd inbox: email a scam from your phone and run it.
   - UI redesign: ledger-style lab, shared light/dark theme, no emoji, pill buttons.
 
@@ -54,8 +54,8 @@
   - Signed payment mandate (Ed25519): payments only to accounts the owner signed; catches a hacked
     supplier list (lab option + case A18).
   - Out-of-band verification: held payments need a code sent to the supplier's number on file.
-  - MCP server mode (`python -m agentwall.mcp_server`), tested with a real Claude Code client.
-  - `evals/model_matrix.py`: the lab's scams against 6 real models, with and without AgentWall.
+  - MCP server mode (`python -m ladon.mcp_server`), tested with a real Claude Code client.
+  - `evals/model_matrix.py`: the lab's scams against 6 real models, with and without Ladon.
   - 128 tests.
 
 - [ ] **Before submitting**
@@ -67,14 +67,14 @@
 ## Phase 2 Review Handoff
 
 ### 1. What was built (files touched)
-- `agentwall/taint.py`: Tracks data provenance (`source`, `trust`, `sensitivity`) for all tool outputs. Identifies exact and fuzzy argument flows (rapidfuzz token overlap) and tracks entities and instructions originating from untrusted sources.
-- `agentwall/impersonation.py`: Fast, deterministic scam recognition without LLM overhead. Detects lookalike domains (`kopje-logistlcs.example` vs `kopjelogistics.example`) using homoglyphs and Levenshtein edit distance; detects display-name spoofing; detects unregistered payee accounts; detects psychological pressure tactics (urgency, secrecy, verification bypass); detects reply-to mismatches.
+- `ladon/taint.py`: Tracks data provenance (`source`, `trust`, `sensitivity`) for all tool outputs. Identifies exact and fuzzy argument flows (rapidfuzz token overlap) and tracks entities and instructions originating from untrusted sources.
+- `ladon/impersonation.py`: Fast, deterministic scam recognition without LLM overhead. Detects lookalike domains (`kopje-logistlcs.example` vs `kopjelogistics.example`) using homoglyphs and Levenshtein edit distance; detects display-name spoofing; detects unregistered payee accounts; detects psychological pressure tactics (urgency, secrecy, verification bypass); detects reply-to mismatches.
 - `policies/default.yaml`: Declarative zero-trust security policy rules covering confidential data exfiltration blocking, untrusted entity/lookalike blocking, payee registry checks, and default-deny fallback.
-- `agentwall/policy.py`: Policy evaluation engine matching proposed tool calls against YAML rules in sequence.
-- `agentwall/audit.py`: Append-only, hash-chained (SHA-256), Ed25519-signed JSON Lines audit log with full verification logic.
+- `ladon/policy.py`: Policy evaluation engine matching proposed tool calls against YAML rules in sequence.
+- `ladon/audit.py`: Append-only, hash-chained (SHA-256), Ed25519-signed JSON Lines audit log with full verification logic.
 - `scripts/verify_log.py`: Standalone CLI tool verifying hash chain continuity and digital signatures, reporting any tampered entry and line number.
-- `agentwall/gateway.py`: Updated with full PROTECTED mode integration (taint tracking, impersonation signals, policy evaluation, audit logging, and security block messaging).
-- `agentwall/agent.py`: Integrated audit logging into agent execution lifecycle.
+- `ladon/gateway.py`: Updated with full PROTECTED mode integration (taint tracking, impersonation signals, policy evaluation, audit logging, and security block messaging).
+- `ladon/agent.py`: Integrated audit logging into agent execution lifecycle.
 - `scenarios/b_protected_defense.json`: Scenario B definition (attack inbox under protected defense).
 - `scenarios/recordings/b_protected_defense.json`: Deterministic replay recording for Scenario B.
 - `tests/test_taint.py`: Unit tests for provenance tracking, exact/fuzzy matching, and entity extraction.
@@ -91,10 +91,10 @@
 .venv/bin/pytest -v
 
 # 2. Run Scenario B in PROTECTED mode (scam stopped, work done)
-env -u GEMINI_API_KEY .venv/bin/python -m agentwall.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
+env -u GEMINI_API_KEY .venv/bin/python -m ladon.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 
 # 3. Run Scenario C in PROTECTED mode (zero false alarms)
-env -u GEMINI_API_KEY .venv/bin/python -m agentwall.agent --scenario scenarios/c_benign_inbox.json --mode protected --llm-mode replay
+env -u GEMINI_API_KEY .venv/bin/python -m ladon.agent --scenario scenarios/c_benign_inbox.json --mode protected --llm-mode replay
 
 # 4. Verify audit log integrity
 .venv/bin/python scripts/verify_log.py
@@ -113,10 +113,10 @@ python -m pytest -v
 
 # 2. Run Scenario B in PROTECTED mode (scam stopped, work done)
 $env:GEMINI_API_KEY=""
-python -m agentwall.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
+python -m ladon.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 
 # 3. Run Scenario C in PROTECTED mode (zero false alarms)
-python -m agentwall.agent --scenario scenarios/c_benign_inbox.json --mode protected --llm-mode replay
+python -m ladon.agent --scenario scenarios/c_benign_inbox.json --mode protected --llm-mode replay
 
 # 4. Verify audit log integrity
 python scripts/verify_log.py
@@ -154,7 +154,7 @@ Files leaked    : []
 #### Expected Output for Tamper Detection Check:
 ```
 ==================================================
- AGENTWALL AUDIT LOG INTEGRITY VERIFIER
+ LADON AUDIT LOG INTEGRITY VERIFIER
  Target Log : logs/audit_tampered.jsonl
  Public Key : .../keys/ed25519_public.pem
 ==================================================

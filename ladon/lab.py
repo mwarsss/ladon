@@ -2,7 +2,7 @@
 
 A visitor writes a scam email (or picks a preset). The same email is delivered to two
 copies of the Kopje Logistics inbox: one assistant runs unprotected, the other through
-AgentWall. Both stream their actions live so the difference is visible at a glance.
+Ladon. Both stream their actions live so the difference is visible at a glance.
 """
 
 from __future__ import annotations
@@ -25,15 +25,15 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agentwall.agent import run_agent_loop
-from agentwall.environment import Environment
-from agentwall.fooled import ACCOUNT_RE, WALLET_RE, FooledAssistant
-from agentwall.gateway import Gateway
-from agentwall.judge import InjectionJudge
-from agentwall.tools import get_tool_category
-from agentwall.llm import BaseLLMProvider, ChatMessage, LLMResponse, create_llm_provider
-from agentwall.scoreboard import Scoreboard
-from agentwall.security import PUBLIC, client_ip
+from ladon.agent import run_agent_loop
+from ladon.environment import Environment
+from ladon.fooled import ACCOUNT_RE, WALLET_RE, FooledAssistant
+from ladon.gateway import Gateway
+from ladon.judge import InjectionJudge
+from ladon.tools import get_tool_category
+from ladon.llm import BaseLLMProvider, ChatMessage, LLMResponse, create_llm_provider
+from ladon.scoreboard import Scoreboard
+from ladon.security import PUBLIC, client_ip
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_SCENARIO = BASE_DIR / "scenarios" / "b_protected_defense.json"
@@ -162,7 +162,7 @@ _ip_history: Dict[str, Deque[float]] = defaultdict(deque)
 _live_today: Dict[str, int] = defaultdict(int)
 _model_lock = threading.Lock()
 # Each inbox check calls Agentboxd; the page polls every 10 s, so allow a little more than that.
-from agentwall.security import RateLimiter  # noqa: E402
+from ladon.security import RateLimiter  # noqa: E402
 inbox_limit = RateLimiter(limit=int(os.environ.get("LAB_INBOX_CHECKS_PER_HOUR", "600")))
 scoreboard = Scoreboard()
 

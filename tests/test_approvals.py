@@ -1,5 +1,5 @@
 """
-Unit tests for the Human-in-the-Loop Approval Queue (agentwall/approvals.py).
+Unit tests for the Human-in-the-Loop Approval Queue (ladon/approvals.py).
 """
 
 import threading
@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from agentwall.approvals import ApprovalQueue
+from ladon.approvals import ApprovalQueue
 
 
 def test_approval_creation_and_resolution():
@@ -82,10 +82,10 @@ def test_hold_sends_code_to_the_contact_on_file_and_approval_needs_it(tmp_path):
     import json
     import threading
 
-    from agentwall.approvals import ApprovalQueue, CodeRejected
-    from agentwall.audit import AuditLogger
-    from agentwall.environment import Environment
-    from agentwall.gateway import Gateway
+    from ladon.approvals import ApprovalQueue, CodeRejected
+    from ladon.audit import AuditLogger
+    from ladon.environment import Environment
+    from ladon.gateway import Gateway
 
     data = json.loads(open("scenarios/d_verify_bank_change.json").read())
     env = Environment.from_scenario(data)
@@ -118,8 +118,8 @@ def test_hold_sends_code_to_the_contact_on_file_and_approval_needs_it(tmp_path):
 
 
 def test_three_wrong_codes_deny_the_payment():
-    from agentwall.approvals import ApprovalQueue, CodeRejected
-    from agentwall.verification import code_hash
+    from ladon.approvals import ApprovalQueue, CodeRejected
+    from ladon.verification import code_hash
 
     queue = ApprovalQueue()
     item = queue.create_request("make_payment", {"to": "ACC-1", "amount": 10}, "hold")

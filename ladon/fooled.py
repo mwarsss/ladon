@@ -12,8 +12,8 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
-from agentwall.environment import Environment
-from agentwall.llm import BaseLLMProvider, ChatMessage, LLMResponse
+from ladon.environment import Environment
+from ladon.llm import BaseLLMProvider, ChatMessage, LLMResponse
 
 AMOUNT_RE = re.compile(r"\$\s?([\d,]+(?:\.\d{1,2})?)")
 ACCOUNT_RE = re.compile(r"\b(?!INV-)([A-Z]{2,5}-\d{4,})\b")

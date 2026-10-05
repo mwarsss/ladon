@@ -1,14 +1,14 @@
 """
-Unit tests for the Scam Report Generator (agentwall/scam_report.py).
+Unit tests for the Scam Report Generator (ladon/scam_report.py).
 """
 
 import pytest
 
-from agentwall.environment import Contact, Environment
-from agentwall.gateway import GatewayDecision
-from agentwall.impersonation import ImpersonationSignal
-from agentwall.judge import JudgeVerdict
-from agentwall.scam_report import generate_scam_report
+from ladon.environment import Contact, Environment
+from ladon.gateway import GatewayDecision
+from ladon.impersonation import ImpersonationSignal
+from ladon.judge import JudgeVerdict
+from ladon.scam_report import generate_scam_report
 
 
 def test_scam_report_generation():
@@ -80,4 +80,4 @@ def test_scam_report_generation():
     assert "+263 77 210 9845" in md
     assert "Tendai Moyo" in md
     assert "$8,450.00" in md
-    assert "# 🛡️ AgentWall Incident Scam Report" in md
+    assert "# 🛡️ Ladon Incident Scam Report" in md

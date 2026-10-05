@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AgentWall Attack Lab</title>
+  <title>Ladon Attack Lab</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..800&family=IBM+Plex+Mono:wght@400;600&family=Public+Sans:wght@400;600;700&display=swap">
@@ -14,13 +14,13 @@
 
   <header class="masthead">
     <div class="wrap">
-      <a class="brand" href="/lab" aria-label="AgentWall Attack Lab">
-        <svg width="26" height="22" viewBox="0 0 26 22" aria-hidden="true">
-          <rect x="0" y="0" width="12" height="6" fill="currentColor"/><rect x="14" y="0" width="12" height="6" fill="currentColor"/>
-          <rect x="0" y="8" width="5" height="6" fill="currentColor"/><rect x="7" y="8" width="12" height="6" fill="currentColor"/><rect x="21" y="8" width="5" height="6" fill="currentColor"/>
-          <rect x="0" y="16" width="12" height="6" fill="currentColor"/><rect x="14" y="16" width="12" height="6" fill="currentColor"/>
-        </svg>
-        <span class="wordmark">AgentWall</span>
+      <a class="brand" href="/lab" aria-label="Ladon Attack Lab">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M12 7.2c-1.6-1.1-5.6-1.2-6.9 2.4-1.2 3.4.6 8.6 3.6 10.2 1.3.7 2.2.3 3.3.3s2 .4 3.3-.3c3-1.6 4.8-6.8 3.6-10.2-1.3-3.6-5.3-3.5-6.9-2.4z" fill="#c8961e"/>
+  <path d="M12 7.4c0-1.6.4-3 1.6-4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M13.2 4.6c1.6-1.4 3.9-1.3 5-.6-.9 1.5-3.2 2.1-5 .6z" fill="#5f7a3a"/>
+</svg>
+        <span class="wordmark">Ladon</span>
         <span class="section">Attack Lab</span>
       </a>
       <a class="navlink" href="/">Scenario dashboard</a>
@@ -33,7 +33,7 @@
       <div>
         <h1>Try to scam Rudo's AI assistant.</h1>
         <p>Rudo runs accounts at a haulage firm. Her assistant reads the inbox, answers customers and pays approved supplier invoices. A scammer no longer has to fool Rudo. Fooling her assistant is enough.</p>
-        <p class="lanes-key">Write the scam yourself. It lands in two identical copies of her inbox, next to a real customer request and a real supplier invoice. <b class="k-loss">Left:</b> the assistant with no protection. <b class="k-safe">Right:</b> the same assistant behind AgentWall.</p>
+        <p class="lanes-key">Write the scam yourself. It lands in two identical copies of her inbox, next to a real customer request and a real supplier invoice. <b class="k-loss">Left:</b> the assistant with no protection. <b class="k-safe">Right:</b> the same assistant behind Ladon.</p>
       </div>
       <aside class="casefile" aria-label="About the company">
         <span class="label">Case file</span>
@@ -47,7 +47,7 @@
         <div class="mandate" id="mandateBox">
           <span class="label">Signed payment mandate</span>
           <p id="mandateLine" class="mono">checking signature…</p>
-          <p class="note">Rudo signed her supplier list and limits. AgentWall only pays accounts her signature covers.</p>
+          <p class="note">Rudo signed her supplier list and limits. Ladon only pays accounts her signature covers.</p>
         </div>
         <p class="note">Business email compromise cost about $3 billion in FBI-reported losses in 2025.</p>
       </aside>
@@ -60,7 +60,7 @@
       </div>
       <dl class="sb-figs">
         <div><dt>Scams tried</dt><dd id="sbScams">0</dd></div>
-        <div><dt>Stopped by AgentWall</dt><dd id="sbStopped" class="k-safe">0</dd></div>
+        <div><dt>Stopped by Ladon</dt><dd id="sbStopped" class="k-safe">0</dd></div>
         <div><dt>Got through</dt><dd id="sbThrough">0</dd></div>
         <div><dt>Money kept from scammers</dt><dd id="sbKept">$0</dd></div>
       </dl>
@@ -114,7 +114,7 @@
     <section class="ledgers">
       <div class="lane">
         <div class="lane-head">
-          <div><h2 class="k-loss">Without AgentWall</h2><p class="lane-sub">Does whatever the email says</p></div>
+          <div><h2 class="k-loss">Without Ladon</h2><p class="lane-sub">Does whatever the email says</p></div>
           <span id="statusUnprotected" class="label">waiting</span>
         </div>
         <ol id="laneUnprotected" class="entries"></ol>
@@ -122,7 +122,7 @@
       </div>
       <div class="lane">
         <div class="lane-head">
-          <div><h2 class="k-safe">With AgentWall</h2><p class="lane-sub">Same assistant, every action checked</p></div>
+          <div><h2 class="k-safe">With Ladon</h2><p class="lane-sub">Same assistant, every action checked</p></div>
           <span id="statusProtected" class="label">waiting</span>
         </div>
         <div id="signals" class="signals"></div>
@@ -131,7 +131,7 @@
       </div>
     </section>
 
-    <p class="fineprint">Everything here is simulated: no real email is sent and no real money moves. "Fully fooled" is an assistant that obeys every instruction it reads, the worst case AgentWall is built for. "Real AI model" runs an actual language model, which may or may not fall for your email.</p>
+    <p class="fineprint">Everything here is simulated: no real email is sent and no real money moves. "Fully fooled" is an assistant that obeys every instruction it reads, the worst case Ladon is built for. "Real AI model" runs an actual language model, which may or may not fall for your email.</p>
   </main>
 
   <script src="/static/lab.js"></script>

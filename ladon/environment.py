@@ -1,5 +1,5 @@
 """
-Mock environment for AgentWall.
+Mock environment for Ladon.
 
 Provides an isolated, in-memory world (inbox, files, web pages, outbox, payments ledger,
 trusted contacts, and payee registry) loaded from scenario definitions.
@@ -11,7 +11,7 @@ import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-from agentwall.mandate import Mandate, owner_mandate
+from ladon.mandate import Mandate, owner_mandate
 
 
 @dataclass

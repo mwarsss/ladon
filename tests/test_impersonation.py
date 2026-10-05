@@ -1,11 +1,11 @@
 """
-Unit tests for Impersonation and Scam Recognition (agentwall/impersonation.py).
+Unit tests for Impersonation and Scam Recognition (ladon/impersonation.py).
 """
 
 import pytest
 
-from agentwall.environment import Contact, Email, Environment, Payee
-from agentwall.impersonation import (
+from ladon.environment import Contact, Email, Environment, Payee
+from ladon.impersonation import (
     analyze_email_signals,
     check_display_name_spoofing,
     check_lookalike_domain,

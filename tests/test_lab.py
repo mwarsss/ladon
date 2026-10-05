@@ -3,9 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from agentwall import lab
-from agentwall.lab import PRESETS, LabEmail, _Run, _run_both, _scenario_with
-from agentwall.server import app
+from ladon import lab
+from ladon.lab import PRESETS, LabEmail, _Run, _run_both, _scenario_with
+from ladon.server import app
 
 FIELDS = ("sender_name", "sender_email", "subject", "body")
 
@@ -89,7 +89,7 @@ def test_real_inbox_only_shows_and_runs_the_visitors_own_emails(monkeypatch):
 
 
 def test_scoreboard_counts_runs_without_storing_email_text(tmp_path):
-    from agentwall.scoreboard import Scoreboard
+    from ladon.scoreboard import Scoreboard
 
     board = Scoreboard(tmp_path / "stats.json")
     lanes = run_preset("fake_ceo")

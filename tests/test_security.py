@@ -5,8 +5,8 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from agentwall import security
-from agentwall.server import app
+from ladon import security
+from ladon.server import app
 
 
 def make_request(headers, client=("10.0.0.1", 1234)):

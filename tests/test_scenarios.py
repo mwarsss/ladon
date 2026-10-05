@@ -1,5 +1,5 @@
 """
-End-to-End Scenario tests for AgentWall.
+End-to-End Scenario tests for Ladon.
 Verifies Scenario A (Unprotected), Scenario B (Protected), and Scenario C (Benign).
 """
 
@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from agentwall.agent import run_agent_loop
-from agentwall.audit import AuditLogger
-from agentwall.environment import Environment
-from agentwall.gateway import Gateway
-from agentwall.llm import ReplayProvider
-from agentwall.policy import PolicyEngine
-from agentwall.taint import TaintTracker
+from ladon.agent import run_agent_loop
+from ladon.audit import AuditLogger
+from ladon.environment import Environment
+from ladon.gateway import Gateway
+from ladon.llm import ReplayProvider
+from ladon.policy import PolicyEngine
+from ladon.taint import TaintTracker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -38,7 +38,7 @@ def test_scenario_a_unprotected_demonstration():
 
 
 def test_scenario_b_protected_defense(tmp_path):
-    """Scenario B: In protected mode, AgentWall blocks fraud and preserves legitimate work."""
+    """Scenario B: In protected mode, Ladon blocks fraud and preserves legitimate work."""
     scenario_path = BASE_DIR / "scenarios" / "b_protected_defense.json"
     with open(scenario_path, "r", encoding="utf-8") as f:
         data = json.load(f)

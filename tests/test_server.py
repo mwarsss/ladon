@@ -1,11 +1,11 @@
 """
-Unit tests for the FastAPI Server API endpoints (agentwall/server.py).
+Unit tests for the FastAPI Server API endpoints (ladon/server.py).
 """
 
 import pytest
 from fastapi.testclient import TestClient
 
-from agentwall.server import app
+from ladon.server import app
 
 client = TestClient(app)
 
@@ -13,7 +13,7 @@ client = TestClient(app)
 def test_index_page():
     response = client.get("/")
     assert response.status_code == 200
-    assert "AgentWall" in response.text
+    assert "Ladon" in response.text
 
 
 def test_get_scenarios():

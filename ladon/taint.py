@@ -1,5 +1,5 @@
 """
-Taint and Provenance Tracking for AgentWall.
+Taint and Provenance Tracking for Ladon.
 
 Tracks the lifecycle, trust level, and sensitivity of all data the AI assistant reads,
 and determines what data flows into outgoing tool calls (preventing exfiltration
@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
 
-from agentwall.environment import Environment
+from ladon.environment import Environment
 
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")

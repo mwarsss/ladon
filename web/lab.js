@@ -1,4 +1,4 @@
-// AgentWall Attack Lab: one email, two assistants, side by side.
+// Ladon Attack Lab: one email, two assistants, side by side.
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({
@@ -172,7 +172,7 @@ function renderVerdict() {
   const uLoss = lossText(u), pLoss = lossText(p);
   let tone, title, text;
   if (uLoss.length && !pLoss.length) {
-    tone = "safe"; title = "AgentWall stopped your scam.";
+    tone = "safe"; title = "Ladon stopped your scam.";
     const workDone = p.paid_total - p.paid_to_unverified > 0;
     text = `Without it: ${uLoss.join(" · ")}. With it: $0 lost` + (workDone
       ? ", and the real work still got done."
@@ -180,18 +180,18 @@ function renderVerdict() {
   } else if (!uLoss.length && !pLoss.length) {
     tone = "calm"; title = brain === "live" ? "The AI didn't fall for it this time." : "Nothing harmful happened.";
     text = brain === "live"
-      ? "This model ignored your email by itself. Models don't always catch scams, so try another, or switch to the fully fooled assistant to see what AgentWall stops."
+      ? "This model ignored your email by itself. Models don't always catch scams, so try another, or switch to the fully fooled assistant to see what Ladon stops."
       : "Your email didn't ask for money or data. Try one of the scam presets.";
   } else {
-    tone = "loss"; title = "Your scam got past AgentWall.";
+    tone = "loss"; title = "Your scam got past Ladon.";
     text = `Protected side: ${pLoss.join(" · ")}. You found a gap; see the timeline for how.`;
   }
   v.className = `verdict ${tone}`;
   v.innerHTML = `
     <div><h2>${esc(title)}</h2><p>${esc(text)}</p></div>
     <dl class="tally">
-      <dt>Without AgentWall</dt><dd class="${u.paid_to_unverified ? "k-loss" : ""}">${esc(money(u.paid_to_unverified))}</dd>
-      <dt>With AgentWall</dt><dd class="${p.paid_to_unverified ? "k-loss" : "k-safe"}">${esc(money(p.paid_to_unverified))}</dd>
+      <dt>Without Ladon</dt><dd class="${u.paid_to_unverified ? "k-loss" : ""}">${esc(money(u.paid_to_unverified))}</dd>
+      <dt>With Ladon</dt><dd class="${p.paid_to_unverified ? "k-loss" : "k-safe"}">${esc(money(p.paid_to_unverified))}</dd>
     </dl>`;
   v.hidden = false;
 }
@@ -243,10 +243,10 @@ const visitorCode = (() => {
   const make = () => "LAB-" + Array.from(crypto.getRandomValues(new Uint8Array(6)),
     (b) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join("");
   try {
-    const saved = localStorage.getItem("agentwall-visitor-code");
+    const saved = localStorage.getItem("ladon-visitor-code");
     if (saved && /^LAB-[A-Z0-9]{6}$/.test(saved)) return saved;
     const fresh = make();
-    localStorage.setItem("agentwall-visitor-code", fresh);
+    localStorage.setItem("ladon-visitor-code", fresh);
     return fresh;
   } catch (e) { return make(); }
 })();
@@ -298,7 +298,7 @@ async function loadScoreboard() {
   $("sbKept").textContent = "$" + Math.round(s.money_kept).toLocaleString("en-US");
   $("sbSince").textContent = s.since ? `since ${s.since} · ${s.runs.toLocaleString()} emails sent` : "";
   $("sbSignals").textContent = s.top_signals.length
-    ? "Most common tricks AgentWall caught: " + s.top_signals.map(([k, n]) => `${SIGNAL_NAMES[k] || k.replace(/_/g, " ")} (${n})`).join(", ")
+    ? "Most common tricks Ladon caught: " + s.top_signals.map(([k, n]) => `${SIGNAL_NAMES[k] || k.replace(/_/g, " ")} (${n})`).join(", ")
     : "No scams yet. Be the first to try.";
   $("sbGapsWrap").hidden = !s.gaps.length;
   $("sbGaps").innerHTML = s.gaps.map((g) =>

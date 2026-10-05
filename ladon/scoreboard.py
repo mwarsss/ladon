@@ -20,10 +20,10 @@ MAX_GAPS = 20
 EMPTY: Dict[str, Any] = {
     "runs": 0,            # emails sent through the lab
     "scams": 0,           # runs where the unprotected assistant was harmed
-    "stopped": 0,         # ... and AgentWall prevented it
+    "stopped": 0,         # ... and Ladon prevented it
     "got_through": 0,     # runs where the protected assistant was harmed
     "money_kept": 0.0,    # dollars the unprotected assistant lost that the protected one didn't
-    "files_kept": 0,      # confidential files leaked without AgentWall, kept with it
+    "files_kept": 0,      # confidential files leaked without Ladon, kept with it
     "by_source": {},      # preset / written by a visitor / real inbox
     "signals": {},        # warning-sign type -> count
     "gaps": [],           # recent runs that got through (no email text)

@@ -1,5 +1,5 @@
 """
-Unit tests for Tamper-Evident Signed Audit Log (agentwall/audit.py).
+Unit tests for Tamper-Evident Signed Audit Log (ladon/audit.py).
 """
 
 import json
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agentwall.audit import AuditLogger
+from ladon.audit import AuditLogger
 
 
 @pytest.fixture

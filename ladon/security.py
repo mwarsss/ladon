@@ -1,4 +1,4 @@
-"""Hardening for running AgentWall on the public internet.
+"""Hardening for running Ladon on the public internet.
 
 - client_ip(): the visitor's address. Behind Render, Cloudflare sets CF-Connecting-IP and
   overwrites any value a visitor sends; X-Forwarded-For is only appended to, so its first
@@ -6,7 +6,7 @@
 - RateLimiter: per-visitor sliding-window limits.
 - SecurityMiddleware: security headers on every response and a cap on request body size.
 
-PUBLIC=1 (AGENTWALL_PUBLIC) switches on the public-deployment behaviour used in server.py
+PUBLIC=1 (LADON_PUBLIC) switches on the public-deployment behaviour used in server.py
 and lab.py: no API docs, replay-only dashboard, limits on state-changing endpoints.
 """
 
@@ -21,7 +21,7 @@ from typing import Deque, Dict
 from fastapi import HTTPException, Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-PUBLIC = os.environ.get("AGENTWALL_PUBLIC", "0") == "1"
+PUBLIC = os.environ.get("LADON_PUBLIC", "0") == "1"
 # "cloudflare": trust CF-Connecting-IP (Render). "1": trust the first X-Forwarded-For entry
 # (only behind a proxy you control that strips client-sent values). Anything else: socket address.
 TRUST_PROXY = os.environ.get("TRUST_PROXY", "0").lower()

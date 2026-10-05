@@ -1,5 +1,5 @@
 """
-Tamper-Evident Hash-Chained and Ed25519-Signed Audit Log for AgentWall.
+Tamper-Evident Hash-Chained and Ed25519-Signed Audit Log for Ladon.
 
 Provides cryptographic non-repudiation for all AI assistant actions and firewall decisions.
 Each entry contains:

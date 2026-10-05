@@ -1,7 +1,7 @@
 """Out-of-band verification: confirm a held payment through a contact already on file.
 
 Experts give the same advice for invoice fraud and cloned-voice calls alike: verify the
-request, not the voice. When AgentWall holds a payment, it looks up the supplier's phone
+request, not the voice. When Ladon holds a payment, it looks up the supplier's phone
 number in the company's own records (never a number or address from the email), sends a
 one-time code there, and only accepts the approval when the person approving types that
 code. Getting the code means the approver really reached the supplier on a known number.
@@ -19,8 +19,8 @@ import secrets
 from email.utils import parseaddr
 from typing import Any, Dict, Optional
 
-from agentwall.environment import Contact, Environment
-from agentwall.taint import TaintTracker
+from ladon.environment import Contact, Environment
+from ladon.taint import TaintTracker
 
 MAX_ATTEMPTS = 3
 
@@ -69,6 +69,6 @@ def sms_text(company: str, contact: Contact, arguments: Dict[str, Any], code: st
         amount_txt = f"${float(amount):,.2f}"
     except (TypeError, ValueError):
         amount_txt = str(amount)
-    return (f"AgentWall for {company}: a payment of {amount_txt} to account {arguments.get('to', '?')} "
+    return (f"Ladon for {company}: a payment of {amount_txt} to account {arguments.get('to', '?')} "
             f"was requested in the name of {contact.name}. If you asked for this, read code {code} to the "
             f"person who calls you from {company}. If you didn't, tell them it is fraud.")

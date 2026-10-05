@@ -1,5 +1,5 @@
 """
-Unified LLM Provider Interface for AgentWall.
+Unified LLM Provider Interface for Ladon.
 
 Supports:
 1. Google Gemini API via official google-genai SDK (default model: gemini-3.8-flash)
@@ -19,8 +19,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from agentwall.replay import ReplayManager
-from agentwall.tools import ALL_TOOLS, ToolDefinition, get_openai_tool_declarations
+from ladon.replay import ReplayManager
+from ladon.tools import ALL_TOOLS, ToolDefinition, get_openai_tool_declarations
 
 
 @dataclass
@@ -175,7 +175,7 @@ class GeminiProvider(BaseLLMProvider):
             temperature=0.0,
             system_instruction=system_instruction,
             tools=gemini_tools,
-            # AgentWall must see and execute every tool call itself.
+            # Ladon must see and execute every tool call itself.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
@@ -235,7 +235,7 @@ class GeminiProvider(BaseLLMProvider):
                         f"Gemini API call failed ({type(exc).__name__}: {exc}). "
                         "Check GEMINI_API_KEY and quota, or run with --llm-mode replay."
                     ) from exc
-                print(f"[agentwall] Gemini busy or rate-limited; retrying in {delay:.0f}s", file=sys.stderr)
+                print(f"[ladon] Gemini busy or rate-limited; retrying in {delay:.0f}s", file=sys.stderr)
                 time.sleep(delay)
 
         extracted_text = ""
@@ -352,7 +352,7 @@ def create_llm_provider(
     mode = mode.lower()
     forced_replay = (
         mode == "replay"
-        or os.getenv("AGENTWALL_MODE", "").lower() == "replay"
+        or os.getenv("LADON_MODE", "").lower() == "replay"
     )
 
     if forced_replay:
@@ -389,7 +389,7 @@ def create_llm_provider(
     if scenario_name:
         rec_path = ReplayManager.RECORDINGS_DIR / f"{scenario_name}.json"
         if rec_path.exists():
-            print(f"[agentwall] No API key set: replaying the recorded run for '{scenario_name}'.", file=sys.stderr)
+            print(f"[ladon] No API key set: replaying the recorded run for '{scenario_name}'.", file=sys.stderr)
             return ReplayProvider(scenario_name)
 
     # If neither key nor replay file exists, provide clear error

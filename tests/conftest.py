@@ -3,4 +3,4 @@
 import os
 import tempfile
 
-os.environ.setdefault("LAB_STATS_PATH", os.path.join(tempfile.mkdtemp(prefix="agentwall-test-"), "lab_stats.json"))
+os.environ.setdefault("LAB_STATS_PATH", os.path.join(tempfile.mkdtemp(prefix="ladon-test-"), "lab_stats.json"))

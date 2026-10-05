@@ -1,5 +1,5 @@
 """
-Impersonation and Scam Recognition Module for AgentWall.
+Impersonation and Scam Recognition Module for Ladon.
 
 Pure-deterministic security checks (zero LLM dependencies):
 1. Lookalike domain detection (homoglyph normalisation + edit distance via rapidfuzz)
@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from rapidfuzz import distance
 
-from agentwall.environment import Contact, Email, Environment
+from ladon.environment import Contact, Email, Environment
 
 # Common homoglyph mappings (visual look-alikes across Latin, numbers, and Cyrillic)
 HOMOGLYPH_MAP = {

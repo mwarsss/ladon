@@ -1,10 +1,10 @@
 """
-Unit tests for the Isolated Prompt Injection Judge (agentwall/judge.py).
+Unit tests for the Isolated Prompt Injection Judge (ladon/judge.py).
 """
 
 import pytest
 
-from agentwall.judge import InjectionJudge, JudgeVerdict
+from ladon.judge import InjectionJudge, JudgeVerdict
 
 
 @pytest.fixture

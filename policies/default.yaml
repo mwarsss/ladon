@@ -1,4 +1,4 @@
-# AgentWall Default Zero-Trust Security Policies
+# Ladon Default Zero-Trust Security Policies
 # First matching rule wins. Unmatched send_external and financial default to deny.
 
 rules:

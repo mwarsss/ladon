@@ -3,7 +3,7 @@
 The payee registry is just data, and data can be changed: a hacked supplier database,
 a careless edit, or an insider can slip a scammer's account into it. A mandate is the
 owner's Ed25519 signature over the approved suppliers and limits (the same idea as the
-signed "intent mandates" in Google's AP2 and Mastercard Agent Pay). AgentWall only lets
+signed "intent mandates" in Google's AP2 and Mastercard Agent Pay). Ladon only lets
 the assistant pay an account that appears in a mandate whose signature checks out.
 
 In the demo, Rudo's key lives in keys/ and the scenario's supplier list is signed when it
@@ -25,7 +25,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
-KEYS_DIR = Path(os.environ.get("AGENTWALL_KEYS_DIR") or Path(__file__).resolve().parent.parent / "keys")
+KEYS_DIR = Path(os.environ.get("LADON_KEYS_DIR") or Path(__file__).resolve().parent.parent / "keys")
 ISSUER = "Rudo, Accounts, Kopje Logistics"
 _key: Optional[ed25519.Ed25519PrivateKey] = None
 

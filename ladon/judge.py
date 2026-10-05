@@ -1,5 +1,5 @@
 """
-Isolated Prompt Injection Judge for AgentWall.
+Isolated Prompt Injection Judge for Ladon.
 
 Operates in two defense layers:
 1. Fast Deterministic Heuristics:
@@ -19,7 +19,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from agentwall.llm import BaseLLMProvider, ChatMessage
+from ladon.llm import BaseLLMProvider, ChatMessage
 
 # Zero-width Unicode characters often used for steganographic injection
 ZERO_WIDTH_CHARS = ["\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u200e", "\u200f"]

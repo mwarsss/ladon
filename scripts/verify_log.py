@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CLI Tool: Verify the integrity of the AgentWall tamper-evident audit log.
+CLI Tool: Verify the integrity of the Ladon tamper-evident audit log.
 
 Checks:
 1. Hash chain continuity across all records
@@ -17,12 +17,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from agentwall.audit import AuditLogger
+from ladon.audit import AuditLogger
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Verify AgentWall audit log cryptographic integrity."
+        description="Verify Ladon audit log cryptographic integrity."
     )
     parser.add_argument(
         "--log",
@@ -42,7 +42,7 @@ def main() -> None:
     pub_path = Path(args.pubkey)
 
     print(f"\n==================================================")
-    print(f" AGENTWALL AUDIT LOG INTEGRITY VERIFIER")
+    print(f" LADON AUDIT LOG INTEGRITY VERIFIER")
     print(f" Target Log : {log_path}")
     print(f" Public Key : {pub_path}")
     print(f"==================================================\n")

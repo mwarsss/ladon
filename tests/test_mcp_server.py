@@ -5,7 +5,7 @@ import sys
 
 from mcp import Client, StdioServerParameters
 
-from agentwall.mcp_server import build_gateway, create_server
+from ladon.mcp_server import build_gateway, create_server
 
 
 def text(result):
@@ -26,7 +26,7 @@ def test_mcp_client_is_blocked_from_paying_the_scammer(tmp_path):
             return scam, real
 
     scam, real = asyncio.run(scenario())
-    assert scam.is_error and "BLOCKED by AgentWall" in text(scam) and "Red flags" in text(scam)
+    assert scam.is_error and "BLOCKED by Ladon" in text(scam) and "Red flags" in text(scam)
     assert not real.is_error and "payment_executed" in text(real)
     assert (tmp_path / "audit.jsonl").read_text().count("make_payment") >= 2  # both calls are in the signed log
 
@@ -34,7 +34,7 @@ def test_mcp_client_is_blocked_from_paying_the_scammer(tmp_path):
 def test_mcp_server_runs_over_stdio(tmp_path):
     async def scenario():
         params = StdioServerParameters(command=sys.executable, args=[
-            "-m", "agentwall.mcp_server", "--audit-log", str(tmp_path / "audit.jsonl")])
+            "-m", "ladon.mcp_server", "--audit-log", str(tmp_path / "audit.jsonl")])
         async with Client(params) as client:
             return await client.call_tool("read_inbox", {})
 
