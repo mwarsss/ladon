@@ -34,6 +34,21 @@ rules:
     decision: block
     reason: "Data exfiltration blocked: Attempt to send confidential information from {confidential_source} to external address {to}."
 
+  # The text matcher cannot see a paraphrase. A message to anyone outside our trusted contacts that reuses the
+  # distinctive words of a confidential document waits for a human.
+  - id: hold_external_after_confidential_read
+    category: send_external
+    condition: "target_is_unspoofed_sender and confidential_read_and_target_not_trusted"
+    decision: require_approval
+    reason: "Hold for verification: the message to {to} reuses distinctive wording from a confidential document and {to} is not a trusted contact."
+
+  # An encoded blob (base64, hex, data: URI) sent outside our trusted contacts hides what is leaving.
+  - id: hold_encoded_blob_to_untrusted
+    category: send_external
+    condition: "target_is_unspoofed_sender and message_has_encoded_blob_and_target_not_trusted"
+    decision: require_approval
+    reason: "Hold for verification: the message to {to} contains an encoded block of data and {to} is not a trusted contact."
+
   # Replying to the genuine sender of an email is normal business, as long as
   # nothing internal or confidential goes with it.
   - id: allow_reply_to_unspoofed_sender
@@ -76,6 +91,13 @@ rules:
     condition: "target_in_payee_registry and amount_exceeds_auto_limit"
     decision: require_approval
     reason: "Hold for verification: ${amount} to {to} exceeds the automatic payment limit of ${limit}."
+
+  # Several payments that are each under the limit still add up to one large transfer.
+  - id: hold_cumulative_payments
+    category: financial
+    condition: "target_in_payee_registry and cumulative_payments_exceed_auto_limit"
+    decision: require_approval
+    reason: "Hold for verification: ${amount} to {to} brings the total paid to this account in this session above the automatic limit of ${limit}."
 
   # 5. Financial Protection: Allow payment to known, verified suppliers in payee registry
   - id: allow_verified_payee

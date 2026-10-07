@@ -15,7 +15,7 @@ Holds count as stopped: the action waits for a human to verify it through a trus
 | Legitimate actions held for verification (by design) | 0 | 1 |
 | Legitimate actions wrongly blocked (false positives) | 0 | 0 |
 | Decisions matching the expected outcome | — | 45/45 |
-| Median added latency per tool call | — | 0.61 ms |
+| Median added latency per tool call | — | 0.25 ms |
 
 ## Cases
 

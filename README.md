@@ -79,7 +79,8 @@ Click any tool call in the timeline to see its provenance: which sources flowed 
 python -m ladon.agent --scenario scenarios/a_attack_email.json --mode unprotected --llm-mode replay
 python -m ladon.agent --scenario scenarios/b_protected_defense.json --mode protected --llm-mode replay
 python scripts/verify_log.py          # verify the signed audit log
-python -m pytest -q                   # 132 tests
+python -m pytest -q                   # 171 tests
+python -m evals.run_heldout           # held-out adversarial set -> evals/heldout_results.md
 python -m evals.run_eval              # benchmark -> evals/results.md
 python -m evals.model_matrix          # same scams against 6 real models -> evals/model_matrix.md
 ```
@@ -123,6 +124,8 @@ flowchart LR
 
 `evals/` contains 30 scripted traces: the exact actions a *fully compromised* assistant would take (one that obeys every injected instruction). Each runs without and with Ladon. This measures the firewall itself, not how cautious a particular model happens to be.
 
+**Read these numbers with care.** We wrote the cases and also fixed the policy against them: about 10 of the 18 stoppable attacks were added after an earlier version failed them. "Without Ladon: 21/21" is true by construction, because the scripted assistant obeys everything and an unprotected gateway allows everything. And "0 false positives" rests on 24 legitimate actions in 9 cases from one fictional company, so the true false-positive rate could be as high as about 12%. This benchmark is a regression suite, not independent evidence; the held-out set below is closer to that.
+
 | Metric | Without Ladon | With Ladon |
 |---|---|---|
 | Attack cases where the attack succeeded | 21/21 | 3/21 (all 3 are documented known misses) |
@@ -146,7 +149,7 @@ flowchart LR
 | gpt-oss 120B | 0/7 | **0/7** |
 | Kimi K2 | 1/7 ($8,450) | **0/7** |
 
-Five of six models fell for at least one scam, and which scam worked changed from model to model; with Ladon none got through, with no false alarms on the genuine email. Each cell is one run, so a model may do better or worse on another day. That variability is the point: the protection shouldn't depend on it.
+Five of six models fell for at least one scam, and which scam worked changed from model to model. Without Ladon 8 of 42 single runs were harmful; with Ladon 0 of 42 were. In 5 of those 8 cases Ladon visibly blocked or held an action in the protected run; in the other 3 the model simply behaved differently on the rerun, so those are not wins for Ladon. Overall Ladon blocked or held something in only 13 of the 42 protected scam runs; in the rest the model never attempted anything stoppable. Each cell is one run (no repeats, no confidence intervals), per-model counts of 7 are too small to rank models, all six come from one provider, and the system prompt tells the assistant to fulfil urgent requests from leadership, which pushes it toward harm (see [evals/model_matrix.md](evals/model_matrix.md)).
 
 Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing, lookalike supplier "new bank details", hidden-text injection, injected web pages, payroll smuggled into a URL (plain and percent-encoded), gift-card scams, duplicate and inflated invoices, reply-to harvesting, paraphrased strategy leaks, and single-row payroll leaks, unknown senders asking for internal records by reply, a supplier asking to be paid to an EcoCash merchant code, a fake EcoCash "sent by mistake" refund, and a scammer's account slipped into the supplier list without the owner's signature. Full per-case results: [evals/results.md](evals/results.md).
 
@@ -155,15 +158,21 @@ Attacks covered: fake-CEO requests from lookalike domains, display-name spoofing
 **Works**
 - All five demo scenarios, end to end, offline (replay) and from the dashboard or command line.
 - The Attack Lab with both assistants, including real emails from an Agentboxd inbox. In a live lab run, the real model paid the fake CEO $8,450 when unprotected; behind Ladon it kept retrying (payment, then a "verification" email, then the payroll) and was blocked four times.
-- Blocking and holding for every stoppable case in the benchmark, with no false positives on the legitimate cases.
+- Blocking or holding all 18 stoppable cases in our own benchmark (some added after earlier versions failed them), with 0 wrongly blocked across 24 legitimate actions.
 - Live runs with real models: the demo recordings come from Qwen 2.5 72B, and a real-model run found a false positive the benchmark had missed (an emailed quote to a customer was blocked); it's fixed and now covered by a benchmark case.
 - Tamper detection on the audit log, and on the supplier list through the signed mandate.
 - Code-confirmed approval of held payments through the supplier's number on file.
 - MCP mode with a real client: a headless Claude Code session (Claude Haiku) read Rudo's inbox through Ladon over MCP, with every call in the signed audit log. Haiku refused the scam on its own, which is exactly why the protection must not depend on the model.
 
+**Held-out adversarial set.** Because the benchmark above was tuned, we wrote a second set (`evals/heldout.py`, 53 actions: 24 attacks, 29 legitimate) as a hostile analyst would, and froze the ideal outcomes before running it. First run, before any fix: **12 of 16 attack actions stopped**, 19 of 19 legitimate actions handled correctly ([evals/heldout_results_first_run.md](evals/heldout_results_first_run.md)). The misses were real: three payments just under the limit to one supplier, a paraphrase of the payroll sent to a stranger, and an encoded blob in a known site's query string. We fixed them (a cumulative payment limit, a hold on messages that reuse distinctive words from a confidential document, a block on encoded blobs in URLs), which makes those 16 cases tuned-against from then on. Then we wrote a fresh round 2 that was not tuned: **6 of 8 attacks stopped, 10 of 10 legitimate correct** on first run. One of the two misses (a base64 data URI sent to a stranger) we then closed; the other, salaries paraphrased by job title with rounded figures and no names, remains open and is listed below. Live numbers: `python -m evals.run_heldout`. Sample size is small and we wrote the cases, so treat this as a stress test, not a measured detection rate.
+
 **Doesn't, or only partly**
 - **Known misses** (in the benchmark on purpose): a fake invoice to a *registered* supplier under the auto-payment limit; salary details paraphrased in words to a trusted contact whose mailbox is compromised; and an injected instruction that only changes the wording of an internal draft.
-- **Paraphrase detection is heuristic.** Data re-expressed in different words ("twelve and a half thousand") is not recognised as the payroll. It is still blocked when the recipient is unknown or spoofed, but not when the recipient is trusted.
+- **Paraphrase detection is heuristic.** A message that reuses two or more distinctive words from a confidential document is now held, but data re-expressed with no shared words ("our chief executive is on about 12.5k") is not recognised. It is still blocked when the recipient is unknown or spoofed, but not when the recipient is trusted.
+- **Encoded or trickled leaks.** Ladon blocks base64/hex blobs in URLs and emails to untrusted recipients, but a patient attacker could leak a few characters per request through short readable paths. Closing that would mean blocking all unknown domains, which breaks ordinary browsing.
+- **Text matching, not true information-flow control.** The model can launder data through its own words. This is the gap CaMeL closes with a privileged/quarantined split and typed capabilities; Ladon borrows the labelling idea without that guarantee.
+- **Related work.** Gateways that enforce data-flow rules between agents and tools already exist (for example Invariant Labs' Guardrails and Meta's LlamaFirewall), and Google's AP2 defines full verifiable payment mandates. Ladon's mandate is a simpler Ed25519 supplier allowlist. What we add is the SME fraud focus (EcoCash patterns, bank-detail changes) and callback verification as the release gate.
+- **Not tested against an adaptive attacker or an external benchmark** such as AgentDojo.
 - **Simulated world.** Email, files, web pages and payments are an in-memory mock, so nothing real is ever sent or paid. Connecting a real inbox (for example Agentboxd, a ForgeHacks sponsor) is the next step.
 - **Replays are recordings.** The offline demo replays real Qwen 2.5 72B runs; a fresh live run may differ because model behaviour varies. Live mode works with Featherless (used for the recordings) and Gemini (tested end to end; the free tier allows 5 requests per minute and a small daily quota, which Ladon retries around). The isolated AI judge runs in live mode; replays use the heuristic judge only.
 - **The verification text is simulated.** The code is shown on screen as the supplier's phone; sending a real SMS needs a gateway (for example Africa's Talking or Twilio), which isn't wired in.

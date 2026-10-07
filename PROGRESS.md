@@ -27,8 +27,9 @@
     data-driven outcome banners, genuine bank changes held instead of blocked, server bound to 127.0.0.1.
 
 - [x] **PHASE 4 — Evaluation and hardening**
-  - `evals/` benchmark: 27 scripted traces; 18/18 attacks succeed unprotected, 3/18 with Ladon (all documented
-    known misses), 0 false positives, 42/42 decisions as expected, ~0.08 ms added per call. Enforced by tests.
+  - `evals/` benchmark: 30 scripted traces; 21/21 attacks succeed unprotected, 3/21 with Ladon (all documented
+    known misses), 0 false positives, 45/45 decisions as expected, ~0.2 ms added per call. Enforced by tests.
+  - `evals/heldout.py` (added 2026-10-07): held-out adversarial set, first run 12/16 attacks stopped, then fixed; round 2 untouched 6/8. See evals/heldout_results_first_run.md.
   - Fixed: URL exfiltration via fetch_url, inflated/duplicate payments to known payees, one-shared-word false
     matches in data-flow tracking, internal/trusted-recipient false positives, silent policy typos.
   - Clear errors for missing/invalid API keys.
@@ -56,7 +57,7 @@
   - Out-of-band verification: held payments need a code sent to the supplier's number on file.
   - MCP server mode (`python -m ladon.mcp_server`), tested with a real Claude Code client.
   - `evals/model_matrix.py`: the lab's scams against 6 real models, with and without Ladon.
-  - 128 tests.
+  - 171 tests (as of 2026-10-07).
 
 - [ ] **Before submitting**
   - Deploy the lab to a public link; record the demo video; make the repo public; submit on Devpost
@@ -87,7 +88,7 @@
 
 #### Bash (Linux / macOS / WSL2)
 ```bash
-# 1. Run complete test suite (27 tests)
+# 1. Run complete test suite (171 tests)
 .venv/bin/pytest -v
 
 # 2. Run Scenario B in PROTECTED mode (scam stopped, work done)
@@ -108,7 +109,7 @@ rm logs/audit_tampered.jsonl
 
 #### PowerShell (Windows 11)
 ```powershell
-# 1. Run complete test suite (27 tests)
+# 1. Run complete test suite (171 tests)
 python -m pytest -v
 
 # 2. Run Scenario B in PROTECTED mode (scam stopped, work done)

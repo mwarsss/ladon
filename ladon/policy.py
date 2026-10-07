@@ -48,6 +48,9 @@ KNOWN_CONDITIONS = {
     "target_in_trusted_contacts",
     "url_sends_payload_to_unknown_domain",
     "amount_exceeds_auto_limit",
+    "cumulative_payments_exceed_auto_limit",
+    "confidential_read_and_target_not_trusted",
+    "message_has_encoded_blob_and_target_not_trusted",
     "is_duplicate_reference",
     "target_not_in_signed_mandate",
     "payment_details_missing",
@@ -245,7 +248,7 @@ class PolicyEngine:
             parts = urlsplit(str(arguments.get("url", "")))
             host = (parts.hostname or "").lower()
             if host in self._known_domains(env):
-                return False
+                return self._query_carries_encoded_blob(parts)
             return bool(parts.query or parts.fragment) or self._url_carries_encoded_payload(parts)
 
         elif cond == "amount_exceeds_auto_limit":
@@ -254,6 +257,39 @@ class PolicyEngine:
             except (TypeError, ValueError):
                 return True
             return amount > self._auto_limit(env, str(arguments.get("to", "")))
+
+        elif cond == "cumulative_payments_exceed_auto_limit":
+            # Several payments each under the limit still add up to one large transfer.
+            to = str(arguments.get("to", ""))
+            payee = env.get_payee(to)
+            same = {to.strip().lower()} | ({payee.account.lower(), payee.name.lower()} if payee else set())
+            prior = sum(p.amount for p in env.payments if p.to.strip().lower() in same)
+            try:
+                amount = float(arguments.get("amount", 0))
+            except (TypeError, ValueError):
+                return True
+            return prior > 0 and prior + amount > self._auto_limit(env, to)
+
+        elif cond == "confidential_read_and_target_not_trusted":
+            # A paraphrase of a confidential document slips past the exact matcher. If the message
+            # reuses its distinctive words and goes outside our trusted contacts, a human checks it.
+            _, addr = parseaddr(str(arguments.get("to", "")))
+            if addr.lower() in {c.email.lower() for c in env.trusted_contacts}:
+                return False
+            return tracker.has_weak_confidential_overlap(arguments)
+
+        elif cond == "message_has_encoded_blob_and_target_not_trusted":
+            # Base64/hex blobs and data: URIs hide what leaves; nobody emails a stranger one by accident.
+            _, addr = parseaddr(str(arguments.get("to", "")))
+            if addr.lower() in {c.email.lower() for c in env.trusted_contacts}:
+                return False
+            text = " ".join(str(v) for k, v in arguments.items() if k != "to")
+            if "data:" in text.lower() and ";base64," in text.lower():
+                return True
+            return any(
+                len(tok) >= 40 and any(c.isdigit() for c in tok) and any(c.isalpha() for c in tok)
+                for tok in re.findall(r"[A-Za-z0-9+/=_-]{40,}", text)
+            )
 
         elif cond == "payment_details_missing":
             if not str(arguments.get("to", "") or "").strip():
@@ -276,6 +312,14 @@ class PolicyEngine:
             return env.is_duplicate_payment(str(arguments.get("reference", "")))
 
         raise ValueError(f"Unknown policy condition: {cond}")
+
+    @staticmethod
+    def _query_carries_encoded_blob(parts) -> bool:
+        """A known site's query may hold an invoice number but not a base64/hex blob."""
+        for chunk in re.split(r"[&=;/]", unquote_plus(f"{parts.query}&{parts.fragment}")):
+            if len(chunk) >= 24 and any(c.isdigit() for c in chunk) and any(c.isalpha() for c in chunk):
+                return True
+        return False
 
     @staticmethod
     def _url_carries_encoded_payload(parts) -> bool:

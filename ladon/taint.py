@@ -293,6 +293,22 @@ class TaintTracker:
                 return flow
         return None
 
+    def has_weak_confidential_overlap(self, arguments: Dict[str, Any]) -> bool:
+        """True if the arguments reuse two or more distinctive words from a confidential document.
+
+        Weaker than has_confidential_flow: catches a paraphrase ("the CEO Tendai earns twelve
+        thousand") that the fragment matcher misses, at the price of more false alarms.
+        """
+        text = " ".join(str(v) for v in arguments.values())
+        arg_terms = {t for t in _tokens(text) if len(t) >= 5 and t not in _STOPWORDS}
+        for label in self.registry:
+            if label.sensitivity != "confidential":
+                continue
+            fp = _fingerprint(label.content)
+            if fp and len({t for t in fp.terms if len(t) >= 5} & arg_terms) >= 2:
+                return True
+        return False
+
     def has_untrusted_entity_flow(self, arguments: Dict[str, Any]) -> Optional[TaintFlow]:
         """Check if any argument contains an address/account introduced in untrusted content."""
         for flow in self.analyze_arguments(arguments):
