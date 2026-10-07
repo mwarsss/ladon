@@ -114,3 +114,10 @@ def test_encoded_payload_in_host_or_path_of_unknown_site_is_blocked(url):
 def test_ordinary_unknown_pages_still_load(url):
     _, gw = protected_gateway()
     assert gw.execute("fetch_url", {"url": url}).decision == "allow"
+
+
+@pytest.mark.parametrize("amount", ["nan", float("nan"), "inf", float("inf"), "-inf"])
+def test_non_finite_payment_amount_is_never_allowed(amount):
+    _, gw = protected_gateway()
+    d = gw.execute("make_payment", {"to": "ACC-55210", "amount": amount, "reference": "NAN-1"})
+    assert d.decision in ("block", "require_approval")

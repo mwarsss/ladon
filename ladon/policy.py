@@ -8,6 +8,7 @@ Unit-testable without requiring any LLM.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -256,7 +257,7 @@ class PolicyEngine:
                 amount = float(arguments.get("amount", 0))
             except (TypeError, ValueError):
                 return True
-            return amount > self._auto_limit(env, str(arguments.get("to", "")))
+            return not math.isfinite(amount) or amount > self._auto_limit(env, str(arguments.get("to", "")))
 
         elif cond == "cumulative_payments_exceed_auto_limit":
             # Several payments each under the limit still add up to one large transfer.
@@ -267,6 +268,8 @@ class PolicyEngine:
             try:
                 amount = float(arguments.get("amount", 0))
             except (TypeError, ValueError):
+                return True
+            if not math.isfinite(amount):
                 return True
             return prior > 0 and prior + amount > self._auto_limit(env, to)
 
@@ -295,9 +298,10 @@ class PolicyEngine:
             if not str(arguments.get("to", "") or "").strip():
                 return True
             try:
-                return float(arguments.get("amount")) <= 0
+                amount = float(arguments.get("amount"))
             except (TypeError, ValueError):
                 return True
+            return not math.isfinite(amount) or amount <= 0
 
         elif cond == "target_not_in_signed_mandate":
             mandate = env.mandate
