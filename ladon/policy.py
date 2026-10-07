@@ -8,6 +8,7 @@ Unit-testable without requiring any LLM.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -243,9 +244,9 @@ class PolicyEngine:
         elif cond == "url_sends_payload_to_unknown_domain":
             parts = urlsplit(str(arguments.get("url", "")))
             host = (parts.hostname or "").lower()
-            if not (parts.query or parts.fragment):
+            if host in self._known_domains(env):
                 return False
-            return host not in self._known_domains(env)
+            return bool(parts.query or parts.fragment) or self._url_carries_encoded_payload(parts)
 
         elif cond == "amount_exceeds_auto_limit":
             try:
@@ -275,6 +276,30 @@ class PolicyEngine:
             return env.is_duplicate_payment(str(arguments.get("reference", "")))
 
         raise ValueError(f"Unknown policy condition: {cond}")
+
+    @staticmethod
+    def _url_carries_encoded_payload(parts) -> bool:
+        """Heuristic for data smuggled in the host or path of a request to an unknown site.
+
+        Query strings are already refused for unknown domains; encoders also use
+        subdomains (DNS-style exfiltration), long base64/hex path segments or
+        credentials in the address. Ordinary pages have short, readable paths.
+        """
+        if parts.username or parts.password:
+            return True
+        host = (parts.hostname or "").lower()
+        labels = host.split(".")
+        if len(host) > 60 or any(len(label) >= 20 and any(c.isdigit() for c in label) for label in labels):
+            return True
+        path = unquote_plus(parts.path or "")
+        if len(path) > 120:
+            return True
+        for seg in path.split("/"):
+            if len(seg) >= 24 and any(c.isdigit() for c in seg) and any(c.isalpha() for c in seg):
+                return True  # base64 / hex / base32 blob
+            if re.fullmatch(r"[0-9a-fA-F]{24,}", seg):
+                return True
+        return False
 
     @staticmethod
     def _is_unspoofed_sender(address: str, env: Environment) -> bool:

