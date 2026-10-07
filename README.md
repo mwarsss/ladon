@@ -8,6 +8,8 @@ Ladon is a fraud and impersonation firewall for AI assistants that handle email,
 
 *ForgeHacks Online 2026 · Track: AI + Cybersecurity*
 
+**New here?** Read the [user manual](docs/USER_MANUAL.md).
+
 **Try to scam it yourself:** open the **Attack Lab** (`/lab`), write a scam email (or email one from your phone to the lab's real inbox), and watch the same email hit two assistants side by side: one unprotected, one behind Ladon.
 
 ![Attack Lab: a real model pays the scammer on the left; Ladon blocks it on the right](docs/img/lab_live.png)
